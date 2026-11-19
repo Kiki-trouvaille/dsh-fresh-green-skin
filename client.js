@@ -1280,18 +1280,26 @@ window.__ModuleLoader__.load({
         ctx.effect(installShortcuts, 'fresh-green-skin: shortcuts')
 
         if (ctx.slots && typeof ctx.slots.inject === 'function') {
-          ctx.slots.inject('settings.general.item', () =>
-            ctx.slots.register(
-              { name: 'settings.general.item', id: 'fresh-green-wallpaper', order: 20 },
-              ThemeRow,
-            ),
-          )
-          ctx.slots.inject('conversation.input.dock', () =>
-            ctx.slots.register(
-              { name: 'conversation.input.dock', id: 'fresh-green-chips', order: 5 },
-              ChipsDock,
-            ),
-          )
+          try {
+            ctx.slots.inject('settings.general.item', () =>
+              ctx.slots.register(
+                { name: 'settings.general.item', id: 'fresh-green-wallpaper', order: 20 },
+                ThemeRow,
+              ),
+            )
+          } catch {
+            /* a host without the general-settings slot simply gets no row */
+          }
+          try {
+            ctx.slots.inject('conversation.input.dock', () =>
+              ctx.slots.register(
+                { name: 'conversation.input.dock', id: 'fresh-green-chips', order: 5 },
+                ChipsDock,
+              ),
+            )
+          } catch {
+            /* older hosts have no composer dock: chips just do not show */
+          }
         }
       },
     }
