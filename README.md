@@ -104,6 +104,16 @@ node tools/smoke-test.cjs
 - 壁纸能透到内容区的前提是 Windows 下应用外框用的是 `--dsw-specific-sidebar-fill`：本插件把它设成全透明，再用 `[class*='_sidebarCol']` 给侧栏单独补一层霜白。若某个 DSH 版本改了类名，侧栏会跟着变透明，其余不受影响。
 - 深色模式下正文是浅色字，透明度拉得很低（照片很亮）时对比度会下降，建议深色模式保留 40% 以上，或直接勾「跟随壁纸自动」。
 
+## 插件市场索引
+
+仓库根目录带一份符合 DSH 索引格式（`format: 1`）的 `market-index.json`，指向本仓库某个提交。启用 GitHub Pages 后，把下面这个地址加进 DSH 的 **插件 → 发现 → 添加索引源**，就能像逛市场一样浏览并安装：
+
+```
+https://kiki-trouvaille.github.io/dsh-fresh-green-skin/market-index.json
+```
+
+索引里的 `versions[].source.commit` 是固定的 40 位提交号，发新版时要把它改成本次提交并同步 `version` / `publishTimestamp`（`publishTimestamp` 是 Unix 秒）。
+
 ## 许可
 
 MIT

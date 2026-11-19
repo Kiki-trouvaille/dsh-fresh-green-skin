@@ -1,0 +1,35 @@
+{
+  "format": 1,
+  "title": { "en": "Fresh Green Skin", "zh": "清新白绿皮肤" },
+  "description": {
+    "en": "Wallpaper theming for DeepSeek Harness: bundled 4K photo, your own image or video, paper-anchored palettes, translucency, custom logo, quick chips and named themes.",
+    "zh": "给 DeepSeek Harness 换壁纸与配色：内置 4K 照片、自己的图片或视频、纸面锚点配色、透光、自定义图标、快捷条与命名主题。"
+  },
+  "plugins": [
+    {
+      "name": "dsh-fresh-green-skin",
+      "title": { "en": "Fresh Green Skin", "zh": "清新白绿皮肤" },
+      "description": {
+        "en": "Fresh white-green theme with photo/video wallpapers, one-click presets, wallpaper-derived or custom palettes, translucent sidebar and bubbles, brand colours, custom logo, quick chips and named themes you can export.",
+        "zh": "清新白绿皮肤：图片/视频壁纸、一键预设、壁纸取色或自定义配色、侧栏与气泡透光、品牌色与自定义图标、快捷条，主题可保存与导出。"
+      },
+      "icon": "icon.svg",
+      "author": "Kiki-trouvaille",
+      "homepage": "https://github.com/Kiki-trouvaille/dsh-fresh-green-skin#readme",
+      "repository": { "url": "https://github.com/Kiki-trouvaille/dsh-fresh-green-skin" },
+      "keywords": ["theme", "wallpaper", "skin", "green", "video-wallpaper"],
+      "versions": [
+        {
+          "version": "1.7.0",
+          "publishTimestamp": 1795097700,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/Kiki-trouvaille/dsh-fresh-green-skin",
+            "commit": "a20f6fba8bf8e92770a97c124e3f8b54262f698f"
+          },
+          "engines": { "dsh": ">=0.2.0-rc.1" }
+        }
+      ]
+    }
+  ]
+}
