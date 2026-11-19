@@ -59,6 +59,12 @@ python tools/build-client.py
 
 替换默认壁纸只要覆盖 `assets/wallpaper-src.png` 再跑一次脚本，然后 `Ctrl+R`；本机存过自定义壁纸的话，先在设置里点“恢复默认”。
 
+改完跑一遍离线冒烟测试（不需要浏览器）：它会用一套假的 DSH 客户端加载 `client.js`，检查服务注入、token 覆盖、设置行注册，并把“壁纸”那一行**真的渲染一次**——渲染报错是这里唯一会静默失败的环节（设置里的整行会直接消失）。
+
+```bash
+node tools/smoke-test.cjs
+```
+
 ## 兼容性
 
 - 只作用于 Web 端（`dsh.client.platform: 'web'`）。

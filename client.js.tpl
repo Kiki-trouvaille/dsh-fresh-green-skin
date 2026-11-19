@@ -254,7 +254,7 @@ window.__ModuleLoader__.load({
                 setNote('')
               },
             }),
-            h('span', { className: 'fgw-value' }, `${visible}%`),
+            h('span', { className: 'fgw-value' }, `${transparency}%`),
           ),
           h(
             'div',
