@@ -113,13 +113,16 @@ body[data-fresh-skin='on'] [class*='_brandMark'] svg path,
 body[data-fresh-skin='on'] [class*='_brandMark'] svg use {
   fill: var(--fgw-whale, currentColor) !important;
 }
+/* The wordmark is one inline SVG: the "deepseek" lettering is currentColor, the
+   HARNESS badge is a currentColor block whose letters use the inverted label
+   token. So we only set the container colour — forcing a fill on every path
+   would paint the badge letters in the same colour and the word would vanish —
+   and we give the badge an inverted value that contrasts with that colour. */
 body[data-fresh-skin='on'] [class*='_brandName'],
 body[data-fresh-skin='on'] [class*='_brandIdentity'],
 body[data-fresh-skin='on'] [class*='_titleGroup'] {
   color: var(--fgw-brandtext, inherit);
-}
-body[data-fresh-skin='on'] [class*='_brandName'] svg path {
-  fill: var(--fgw-brandtext, currentColor) !important;
+  --dsw-alias-label-primary-inverted: var(--fgw-brand-inverted, #fafdfa);
 }
 /* Quick-launch chips docked right above the composer. */
 .fgw-dock {
@@ -315,6 +318,13 @@ function systemTone(next) {
 /** Pick readable text for a surface of the given luminance. */
 function inkFor(surfaceLuminance) {
   return surfaceLuminance > 0.5 ? '#0f1c14' : '#f2faf5'
+}
+
+/** Perceived brightness of a hex colour, 0 (black) to 1 (white). */
+function luminanceOfHex(color) {
+  const rgb = hexToRgb(color)
+  if (!rgb) return 0.5
+  return (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255
 }
 
 /** Palette for the quick-launch chips: derived from the wallpaper when possible. */
@@ -761,9 +771,15 @@ function applyState(next) {
   if (colors.whale) root.style.setProperty('--fgw-whale', colors.whale)
   else root.style.removeProperty('--fgw-whale')
   // The wordmark colour simply follows its picker — no extra switch to forget
-  // about; an empty value restores the host's own colour.
-  if (colors.wordmark) root.style.setProperty('--fgw-brandtext', colors.wordmark)
-  else root.style.removeProperty('--fgw-brandtext')
+  // about; an empty value restores the host's own colour. The badge letters sit
+  // on that colour, so flip them to whichever ink stays readable.
+  if (colors.wordmark) {
+    root.style.setProperty('--fgw-brandtext', colors.wordmark)
+    root.style.setProperty('--fgw-brand-inverted', luminanceOfHex(colors.wordmark) > 0.55 ? '#0f1c14' : '#fafdfa')
+  } else {
+    root.style.removeProperty('--fgw-brandtext')
+    root.style.removeProperty('--fgw-brand-inverted')
+  }
 
   const body = document.body
   if (body) {

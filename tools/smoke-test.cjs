@@ -376,7 +376,14 @@ if (tree) {
 check(CSS_TEXT.includes('.fgw-preset'), 'preset buttons are styled')
 check(CSS_TEXT.includes("body[data-fgw-logo='on']"), 'a custom logo hides the host whale')
 check(CSS_TEXT.includes("[class*='_brandMark'] svg path"), 'the sidebar whale is painted from the theme')
-check(CSS_TEXT.includes("[class*='_brandName'] svg path"), 'the sidebar wordmark is painted from the theme')
+check(
+  cssVars.get('--fgw-brand-inverted') === '#fafdfa',
+  'badge letters flip to light ink on a dark wordmark colour',
+)
+check(
+  CSS_TEXT.includes("--dsw-alias-label-primary-inverted: var(--fgw-brand-inverted"),
+  'the badge letter token is overridden so HARNESS stays readable',
+)
 
 // --- persistence keeps every panel field ----------------------------------
 let saved = null
