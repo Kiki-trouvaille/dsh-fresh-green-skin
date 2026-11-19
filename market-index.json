@@ -36,6 +36,18 @@
       },
       "versions": [
         {
+          "version": "1.8.1",
+          "publishTimestamp": 1795100948,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/Kiki-trouvaille/dsh-fresh-green-skin",
+            "commit": "fb5dbf89f7806f1030ea801a64c3617dcd9afa55"
+          },
+          "engines": {
+            "dsh": ">=0.2.0-rc.1"
+          }
+        },
+        {
           "version": "1.8.0",
           "publishTimestamp": 1795100122,
           "source": {
