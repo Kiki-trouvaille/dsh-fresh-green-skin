@@ -352,8 +352,9 @@ function backgroundCss(next) {
 }
 
 function resolveVeil(next) {
-  if (next.autoVeil && runtime.sample) return runtime.sample.veil
-  return clamp(Number(next.veil), 0, 1)
+  if (next.autoVeil && runtime.derived) return clamp(Number(runtime.derived.veil), 0.15, 0.85)
+  const raw = Number(next.veil)
+  return clamp(Number.isFinite(raw) ? raw : DEFAULT_VEIL, 0, 1)
 }
 
 function buildTokens(next) {
