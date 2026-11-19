@@ -1,19 +1,19 @@
 /**
- * Fresh white-green skin for the DSH web UI, with a user-swappable photo
- * wallpaper and a live wallpaper-transparency slider.
+ * Fresh white-green skin for the DSH web UI, with a gallery of built-in
+ * wallpapers, a user-uploadable photo, and a live transparency slider.
  *
  * Layers:
  *  - theme tokens through the Client `theme` service (overrideTokens keeps
  *    light/dark/system switching intact, unlike register() which pins one scheme);
- *  - a fixed photo wallpaper painted behind the app frame, veiled by a white
- *    (light) or ink-green (dark) gradient whose alpha is driven by the sliders;
- *  - a "壁纸" row in 设置 → 通用 to pick a new photo and tune the veil.
+ *  - a fixed wallpaper painted behind the app frame, veiled by a white (light)
+ *    or ink-green (dark) layer whose alpha is driven by the slider;
+ *  - a "壁纸" row in 设置 → 通用 with preset thumbnails, upload and reset.
  *
  * Preferences live in localStorage of the web app origin, so they apply to
  * this browser profile without touching the Host config.
  *
- * The default wallpaper is inlined as a WebP data URI by tools/build-client.py;
- * edit this template, not the generated client.js.
+ * Preset images are inlined as WebP data URIs by tools/build-client.py; edit
+ * this template, not the generated client.js.
  */
 
 const SOURCE = 'dsh-fresh-green-skin'
@@ -21,15 +21,22 @@ const IMAGE_KEY = 'fresh-green-skin:wallpaper'
 const VEIL_KEY = 'fresh-green-skin:veil'
 
 const DEFAULT_VEIL = 0.34
-const DEFAULT_WALL = 'data:image/webp;base64,__WALL_B64__'
+
+/** Injected by tools/build-client.py: [{ id, label, value }], value is a CSS background-image. */
+const PRESETS = __PRESETS__
+
+const DEFAULT_BG = PRESETS[0].value
 
 const TOKENS = {
   '--dsw-alias-bg-base': { light: 'rgba(255,255,255,0)', dark: 'rgba(0,0,0,0)' },
+  // Windows paints the whole app frame with the sidebar token, so it has to be
+  // clear for the wallpaper to reach the content area (see CSS below, which
+  // re-frosts the sidebar column itself).
+  '--dsw-specific-sidebar-fill': { light: 'rgba(0,0,0,0)', dark: 'rgba(0,0,0,0)' },
   '--dsw-alias-bg-layer-1': { light: 'rgba(255,255,255,0.72)', dark: 'rgba(18,30,23,0.82)' },
   '--dsw-alias-bg-layer-2': { light: 'rgba(255,255,255,0.84)', dark: 'rgba(24,38,30,0.88)' },
   '--dsw-alias-bg-layer-3': { light: 'rgba(255,255,255,0.92)', dark: 'rgba(30,46,37,0.93)' },
   '--dsw-alias-bg-overlay': { light: '#ffffff', dark: '#16241c' },
-  '--dsw-specific-sidebar-fill': { light: 'rgba(250,253,250,0.55)', dark: 'rgba(13,24,18,0.80)' },
   '--dsw-alias-border-l1': { light: 'rgba(47,143,91,0.16)', dark: 'rgba(140,220,175,0.14)' },
   '--dsw-alias-border-l2': { light: 'rgba(47,143,91,0.22)', dark: 'rgba(140,220,175,0.20)' },
   '--dsw-alias-border-l3': { light: 'rgba(47,143,91,0.30)', dark: 'rgba(140,220,175,0.28)' },
@@ -58,18 +65,29 @@ body[data-ds-dark-theme][data-fresh-skin='on'] {
     linear-gradient(rgba(6,12,9,var(--fgw-veil-dark,0.60)), rgba(6,12,9,var(--fgw-veil-dark,0.60))),
     var(--fgw-image, none) !important;
 }
+/* The frame token is transparent so the wallpaper shows; the sidebar keeps its
+   own frosted panel so navigation text stays readable. Class hashes change
+   between DSH builds, the "_sidebarCol" suffix does not. */
+body[data-fresh-skin='on'] [class*='_sidebarCol'] { background: rgba(250,253,250,0.62) !important; }
+body[data-ds-dark-theme][data-fresh-skin='on'] [class*='_sidebarCol'] { background: rgba(13,24,18,0.80) !important; }
 .fgw-row {
   display: flex; align-items: center; gap: 16px;
   padding: 16px 0; border-bottom: .5px solid var(--dsw-alias-border-l2);
   color: var(--dsw-alias-label-primary);
 }
+.fgw-gallery { display: flex; align-items: center; gap: 8px; flex: none; }
+.fgw-chip {
+  width: 64px; height: 40px; padding: 0; flex: none; cursor: pointer;
+  border-radius: 8px; border: 2px solid transparent;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
+}
+.fgw-chip.active {
+  border-color: var(--dsw-alias-brand-primary);
+  box-shadow: 0 0 0 2px rgba(46,139,87,.20);
+}
 .fgw-main { flex: 1; min-width: 0; }
 .fgw-title { font-size: 14px; line-height: 20px; }
-.fgw-desc { font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); margin-top: 4px; }
-.fgw-thumb {
-  width: 96px; height: 56px; flex: none; border-radius: 8px; object-fit: cover;
-  border: 1px solid var(--dsw-alias-border-l2); background: rgba(255,255,255,.4);
-}
 .fgw-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
 .fgw-btn {
   font: inherit; font-size: 12px; line-height: 18px; padding: 5px 12px; border-radius: 8px;
@@ -93,17 +111,23 @@ const listeners = new Set()
 let state = null
 
 function defaults() {
-  return { image: DEFAULT_WALL, veil: DEFAULT_VEIL }
+  return { bg: DEFAULT_BG, veil: DEFAULT_VEIL }
+}
+
+/** Legacy builds stored the raw data URI instead of a full CSS background-image. */
+function normalizeBg(value) {
+  if (!value) return DEFAULT_BG
+  return /^(url|linear-gradient|radial-gradient|conic-gradient)\(/.test(value) ? value : `url("${value}")`
 }
 
 function readStored() {
   const fallback = defaults()
   try {
-    const image = localStorage.getItem(IMAGE_KEY)
+    const bg = normalizeBg(localStorage.getItem(IMAGE_KEY))
     const storedVeil = localStorage.getItem(VEIL_KEY)
     const veil = storedVeil === null ? fallback.veil : Number(storedVeil)
     return {
-      image: image || fallback.image,
+      bg,
       veil: Number.isFinite(veil) ? Math.min(1, Math.max(0, veil)) : fallback.veil,
     }
   } catch {
@@ -118,19 +142,19 @@ function getState() {
 
 function applyState(next) {
   const root = document.documentElement
-  root.style.setProperty('--fgw-image', `url("${next.image}")`)
+  root.style.setProperty('--fgw-image', next.bg)
   root.style.setProperty('--fgw-veil', String(next.veil))
   root.style.setProperty('--fgw-veil-dark', String(next.veil))
 }
 
-let persistedImage = null
+let persistedBg = null
 
 function persist(next) {
   try {
-    if (next.image.length > 4 * 1024 * 1024) throw new Error('image too large for localStorage')
-    if (persistedImage !== next.image) {
-      localStorage.setItem(IMAGE_KEY, next.image)
-      persistedImage = next.image
+    if (next.bg.length > 4 * 1024 * 1024) throw new Error('图片太大，无法保存')
+    if (persistedBg !== next.bg) {
+      localStorage.setItem(IMAGE_KEY, next.bg)
+      persistedBg = next.bg
     }
     localStorage.setItem(VEIL_KEY, String(next.veil))
     return null
@@ -163,7 +187,7 @@ function readImageFile(file, done) {
       const context = canvas.getContext('2d')
       if (!context) return done(new Error('浏览器不支持 canvas'))
       context.drawImage(image, 0, 0, canvas.width, canvas.height)
-      done(null, canvas.toDataURL('image/jpeg', 0.86))
+      done(null, `url("${canvas.toDataURL('image/jpeg', 0.86)}")`)
     }
     image.src = String(reader.result)
   }
@@ -206,20 +230,26 @@ window.__ModuleLoader__.load({
       }, [])
 
       const transparency = Math.round(current.veil * 100)
+      const isPreset = PRESETS.some((preset) => preset.value === current.bg)
 
       const pick = () => fileRef.current && fileRef.current.click()
+
+      const choosePreset = (preset) => {
+        setNote('')
+        setState({ ...current, bg: preset.value })
+      }
 
       const onFile = (event) => {
         const file = event.target.files && event.target.files[0]
         event.target.value = ''
         if (!file) return
         setNote('正在处理图片…')
-        readImageFile(file, (error, dataUrl) => {
-          if (error || !dataUrl) {
+        readImageFile(file, (error, value) => {
+          if (error || !value) {
             setNote(`换图失败：${error ? error.message : '未知错误'}`)
             return
           }
-          const failure = setState({ ...current, image: dataUrl })
+          const failure = setState({ ...current, bg: value })
           setNote(failure ? `换图失败：${failure}` : '壁纸已更换')
         })
       }
@@ -229,15 +259,39 @@ window.__ModuleLoader__.load({
         setNote(failure ? `恢复失败：${failure}` : '已恢复默认壁纸')
       }
 
+      const chips = PRESETS.map((preset) =>
+        h('button', {
+          key: preset.id,
+          type: 'button',
+          className: `fgw-chip${current.bg === preset.value ? ' active' : ''}`,
+          title: preset.label,
+          'aria-label': preset.label,
+          style: { backgroundImage: preset.value },
+          onClick: () => choosePreset(preset),
+        }),
+      )
+      if (!isPreset) {
+        chips.push(
+          h('button', {
+            key: 'custom',
+            type: 'button',
+            className: 'fgw-chip active',
+            title: '我的图片',
+            'aria-label': '我的图片',
+            style: { backgroundImage: current.bg },
+            onClick: pick,
+          }),
+        )
+      }
+
       return h(
         'div',
         { className: 'fgw-row' },
-        h('img', { className: 'fgw-thumb', src: current.image, alt: '当前壁纸' }),
+        h('div', { className: 'fgw-gallery' }, chips),
         h(
           'div',
           { className: 'fgw-main' },
           h('div', { className: 'fgw-title' }, '壁纸'),
-          h('div', { className: 'fgw-desc' }, '选一张自己的图片做背景。透明度 0% 完全显示壁纸，100% 完全遮住。'),
           h(
             'div',
             { className: 'fgw-slider' },

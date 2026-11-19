@@ -161,6 +161,17 @@ const text = (node, out = []) => {
   return out
 }
 
+const nodes = (node, out = []) => {
+  if (!node || typeof node !== 'object') return out
+  if (Array.isArray(node)) {
+    node.forEach((child) => nodes(child, out))
+    return out
+  }
+  out.push(node)
+  if (node.children) node.children.forEach((child) => nodes(child, out))
+  return out
+}
+
 if (tree) {
   const rendered = text(tree).join(' ')
   check(rendered.includes('壁纸'), 'row renders the 壁纸 label')
@@ -168,6 +179,21 @@ if (tree) {
   check(/\d+%/.test(rendered), 'row renders a percentage value')
   check(rendered.includes('上传图片'), 'row renders the upload button')
   check(rendered.includes('恢复默认'), 'row renders the reset button')
+  check(!rendered.includes('选一张自己的图片做背景'), 'row drops the old description sentence')
+
+  const chips = nodes(tree).filter(
+    (node) => typeof node.props.className === 'string' && node.props.className.includes('fgw-chip'),
+  )
+  check(chips.length >= 4, `row renders the preset gallery (${chips.length} chips)`)
+  check(chips.filter((chip) => chip.props.className.includes('active')).length === 1, 'exactly one chip is active')
+  check(
+    chips.some((chip) => String(chip.props.style.backgroundImage).startsWith('url(')),
+    'one preset is a photo',
+  )
+  check(
+    chips.some((chip) => String(chip.props.style.backgroundImage).includes('gradient(')),
+    'one preset is a gradient',
+  )
 }
 
 if (failures.length) {
