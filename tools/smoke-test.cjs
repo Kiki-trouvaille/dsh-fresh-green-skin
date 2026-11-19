@@ -28,13 +28,47 @@ const check = (ok, label) => {
 // --- fake DOM -------------------------------------------------------------
 const styleNodes = []
 const bodyProps = {}
+const cssVars = new Map()
+
+const fakeStyle = {
+  setProperty(name, value) {
+    cssVars.set(name, value)
+  },
+  removeProperty(name) {
+    cssVars.delete(name)
+  },
+}
+
+const makeElement = (tag) => ({
+  tagName: String(tag).toUpperCase(),
+  textContent: '',
+  className: '',
+  dataset: {},
+  style: fakeStyle,
+  children: [],
+  appendChild(child) {
+    this.children.push(child)
+    return child
+  },
+  remove() {},
+  setAttribute() {},
+  play() {
+    return Promise.resolve()
+  },
+  addEventListener() {},
+  removeEventListener() {},
+})
 
 const document = {
-  head: { appendChild: (node) => styleNodes.push(node) },
-  body: { dataset: bodyProps },
-  createElement: () => ({ textContent: '', dataset: {}, remove() {} }),
-  documentElement: { dataset: {}, style: { setProperty() {} } },
+  head: makeElement('head'),
+  body: makeElement('body'),
+  documentElement: { dataset: {}, style: fakeStyle },
+  createElement: (tag) => makeElement(tag),
   querySelector: () => null,
+}
+document.head.appendChild = (node) => {
+  styleNodes.push(node)
+  return node
 }
 
 const store = new Map()
@@ -81,9 +115,34 @@ const window = {
       moduleEntry = entry
     },
   },
+  addEventListener() {},
+  removeEventListener() {},
 }
 
-const sandbox = { window, document, localStorage, require: requireShim, console }
+class FakeImage {
+  constructor() {
+    this.naturalWidth = 100
+    this.naturalHeight = 100
+    this.onload = null
+    this.onerror = null
+  }
+  set src(value) {
+    this._src = value
+  }
+  get src() {
+    return this._src
+  }
+}
+
+const sandbox = {
+  window,
+  document,
+  localStorage,
+  require: requireShim,
+  console,
+  Image: FakeImage,
+  URL: { createObjectURL: () => 'blob:stub', revokeObjectURL() {} },
+}
 sandbox.globalThis = sandbox
 vm.createContext(sandbox)
 vm.runInContext(source, sandbox, { filename: 'client.js' })
@@ -126,9 +185,16 @@ try {
 }
 
 check(styleNodes.length === 1, 'injects exactly one <style> element')
-check(bodyProps.freshSkin === 'on', 'marks the body with data-fresh-skin')
+check(document.body.dataset.freshSkin === 'on', 'marks the body with data-fresh-skin')
+check(cssVars.has('--fgw-image'), 'sets --fgw-image')
+check(cssVars.has('--fgw-veil'), 'sets --fgw-veil')
 check(tokenCalls.length === 1, 'calls theme.overrideTokens once')
 check(tokenCalls[0] && Object.keys(tokenCalls[0].tokens).length >= 15, 'overrides at least 15 theme tokens')
+check(
+  tokenCalls[0] && tokenCalls[0].tokens['--dsw-specific-sidebar-fill'] &&
+    tokenCalls[0].tokens['--dsw-specific-sidebar-fill'].light === 'rgba(0,0,0,0)',
+  'frame token is transparent so the wallpaper shows',
+)
 
 const row = registered.find((item) => item.definition && item.definition.id === 'fresh-green-wallpaper')
 check(Boolean(row), 'registers the wallpaper row on settings.general.item')
@@ -178,20 +244,27 @@ if (tree) {
   check(rendered.includes('透明度'), 'row renders the 透明度 slider label')
   check(/\d+%/.test(rendered), 'row renders a percentage value')
   check(rendered.includes('上传图片'), 'row renders the upload button')
+  check(rendered.includes('上传视频'), 'row renders the video upload button')
   check(rendered.includes('恢复默认'), 'row renders the reset button')
+  check(rendered.includes('跟随壁纸自动'), 'row renders the adaptive veil toggle')
+  check(rendered.includes('跟随壁纸'), 'row renders the wallpaper-derived palette option')
+  check(rendered.includes('保存主题'), 'row renders the save-theme button')
+  check(rendered.includes('字体'), 'row renders the font picker')
   check(!rendered.includes('选一张自己的图片做背景'), 'row drops the old description sentence')
 
   const chips = nodes(tree).filter(
     (node) => typeof node.props.className === 'string' && node.props.className.includes('fgw-chip'),
   )
-  check(chips.length >= 1, `row renders the preset gallery (${chips.length} chips)`)
+  const photoChips = chips.filter((chip) => !chip.props.className.includes('video'))
+  check(photoChips.length >= 1, `row renders the preset gallery (${photoChips.length} photo chips)`)
+  check(chips.length > photoChips.length, 'row renders a video chip')
   check(chips.filter((chip) => chip.props.className.includes('active')).length === 1, 'exactly one chip is active')
   check(
-    chips.every((chip) => /^(url|linear-gradient|radial-gradient)\(/.test(String(chip.props.style.backgroundImage))),
+    photoChips.every((chip) => /^(url|linear-gradient|radial-gradient)\(/.test(String(chip.props.style.backgroundImage))),
     'every preset has a usable background-image',
   )
   check(
-    chips.some((chip) => String(chip.props.style.backgroundImage).includes('data:image/')),
+    photoChips.some((chip) => String(chip.props.style.backgroundImage).includes('data:image/')),
     'the default preset is an inlined photo',
   )
 }

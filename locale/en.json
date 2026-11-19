@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Fresh Green Skin",
-    "description": "A clean white-green color scheme with a 4K wallpaper gallery, your own photo upload and a transparency slider, in both light and dark mode.",
-    "detail": "docs/DETAIL.md"
+    "description": "Fresh green palette with custom wallpapers (image or video), wallpaper-derived colours, adaptive veil, fonts and named themes",
+    "detail": "Settings → General → Wallpaper: pick the bundled 4K photo, upload your own image or video, tune the transparency, derive colours from the wallpaper or pick your own, change the font, and save combinations as named themes switchable with Ctrl+Alt+number."
   }
 }
