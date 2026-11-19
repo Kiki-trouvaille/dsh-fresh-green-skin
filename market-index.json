@@ -17,7 +17,9 @@
       "author": "Kiki-trouvaille",
       "homepage": "https://github.com/Kiki-trouvaille/dsh-fresh-green-skin#readme",
       "repository": { "url": "https://github.com/Kiki-trouvaille/dsh-fresh-green-skin" },
-      "keywords": ["theme", "wallpaper", "skin", "green", "video-wallpaper"],
+      "metadata": {
+        "keywords": ["theme", "wallpaper", "skin", "green", "video-wallpaper"]
+      },
       "versions": [
         {
           "version": "1.7.0",
