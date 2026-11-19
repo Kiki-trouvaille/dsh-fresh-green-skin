@@ -94,6 +94,10 @@ body[data-ds-dark-theme] .fgw-video-veil { background: rgba(6,12,9,var(--fgw-vei
    own frosted panel so navigation text stays readable. */
 body[data-fresh-skin='on'] [class*='_sidebarCol'] { background: var(--fgw-sidebar, rgba(250,253,250,0.62)) !important; }
 body[data-ds-dark-theme][data-fresh-skin='on'] [class*='_sidebarCol'] { background: var(--fgw-sidebar, rgba(13,24,18,0.80)) !important; }
+/* Windows paints the titlebar strip from the sidebar fill, so the same tint keeps
+   the top bar and the sidebar reading as one surface instead of two panels. */
+body[data-fresh-skin='on'] [class*='_frame']::before { background: var(--fgw-sidebar, rgba(250,253,250,0.62)) !important; }
+body[data-ds-dark-theme][data-fresh-skin='on'] [class*='_frame']::before { background: var(--fgw-sidebar, rgba(13,24,18,0.80)) !important; }
 /* Brand marks: the home pixel whale is a canvas painted from its computed
    colour, the sidebar lockup is inline SVG — both follow the theme variables. */
 body[data-fresh-skin='on'] canvas[data-home-whale] {
@@ -104,16 +108,12 @@ body[data-fresh-skin='on'] [class*='_fish'] svg,
 body[data-fresh-skin='on'] [class*='_fish'] path {
   fill: var(--fgw-whale, currentColor) !important;
 }
-body[data-fresh-skin='on'] [class*='_brandMark'] svg,
-body[data-fresh-skin='on'] [class*='_brandMark'] path,
-body[data-fresh-skin='on'] [class*='_brandName'],
-body[data-fresh-skin='on'] [class*='_brandIdentity'],
-body[data-fresh-skin='on'] [class*='_titleGroup'] {
+/* Optional: tint the sidebar wordmark. Off by default — the lockup also carries
+   the HARNESS badge, which would be painted with the same colour and vanish. */
+body[data-fgw-brand-tint='on'] [class*='_brandName'],
+body[data-fgw-brand-tint='on'] [class*='_brandIdentity'],
+body[data-fgw-brand-tint='on'] [class*='_titleGroup'] {
   color: var(--fgw-brandtext, inherit) !important;
-}
-body[data-fresh-skin='on'] [class*='_brandMark'] svg path,
-body[data-fresh-skin='on'] [class*='_brandIdentity'] svg path {
-  fill: currentColor !important;
 }
 /* Quick-launch chips docked right above the composer. */
 .fgw-dock {
@@ -156,6 +156,7 @@ body[data-fresh-skin='on'] [class*='_brandIdentity'] svg path {
 .fgw-main { flex: 1; min-width: 0; }
 .fgw-title { font-size: 14px; line-height: 20px; }
 .fgw-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fgw-inline { padding-left: 0; }
 .fgw-btn {
   font: inherit; font-size: 12px; line-height: 18px; padding: 5px 12px; border-radius: 8px;
   cursor: pointer; color: var(--dsw-alias-label-primary);
@@ -230,6 +231,15 @@ function withAlpha(color, alpha) {
   const g = parseInt(digits.slice(2, 4), 16)
   const b = parseInt(digits.slice(4, 6), 16)
   return `rgba(${r},${g},${b},${ratio})`
+}
+
+/** Pick readable text for the current wallpaper: dark on a light photo, light on
+    a dark one, so the "follow the system" palette never ends up unreadable. */
+function contrastText(darkMode) {
+  if (darkMode) return '#eef7f1'
+  const sample = runtime.derived && runtime.derived.sample
+  const luminance = sample ? Number(sample.luminance ?? sample.l ?? 0.82) : 0.82
+  return luminance > 0.52 ? '#0f1c14' : '#f4fbf6'
 }
 
 /** Palette for the quick-launch chips: derived from the wallpaper when possible. */
@@ -401,6 +411,7 @@ function defaults() {
     veil: DEFAULT_VEIL,
     autoVeil: false,
     palette: 'theme',
+    brandTint: false,
     colors: { brand: '', sidebar: '', bubble: '', text: '', whale: '', wordmark: '' },
     alpha: { sidebar: 62, bubble: 88 },
     chips: { enabled: true, items: [] },
@@ -469,6 +480,15 @@ function buildTokens(next) {
   const colors = next.colors || {}
   const alpha = next.alpha || {}
 
+  if (next.palette === 'system') {
+    // Follow whatever the host theme is: neutral frosted surfaces over the
+    // wallpaper and a text colour picked for contrast, no colour cast of ours.
+    tokens['--dsw-alias-bg-layer-1'] = { light: 'rgba(255,255,255,0.60)', dark: 'rgba(18,24,20,0.66)' }
+    tokens['--dsw-alias-bg-layer-2'] = { light: 'rgba(255,255,255,0.78)', dark: 'rgba(22,30,25,0.80)' }
+    tokens['--dsw-alias-bg-layer-3'] = { light: 'rgba(255,255,255,0.90)', dark: 'rgba(28,38,32,0.90)' }
+    tokens['--dsw-alias-label-primary'] = { light: contrastText(false), dark: '#eef7f1' }
+  }
+
   if (sample) {
     tokens['--dsw-alias-brand-primary'] = { light: sample.brand, dark: sample.brandDark }
     tokens['--dsw-alias-state-business-primary'] = { light: sample.brand, dark: sample.brandDark }
@@ -522,12 +542,14 @@ function applyState(next) {
 
   if (colors.whale) root.style.setProperty('--fgw-whale', colors.whale)
   else root.style.removeProperty('--fgw-whale')
-  if (colors.wordmark) root.style.setProperty('--fgw-brandtext', colors.wordmark)
+  if (next.brandTint && colors.wordmark) root.style.setProperty('--fgw-brandtext', colors.wordmark)
   else root.style.removeProperty('--fgw-brandtext')
 
   const body = document.body
   if (body) {
     body.dataset.freshSkin = 'on'
+    if (next.brandTint && colors.wordmark) body.dataset.fgwBrandTint = 'on'
+    else delete body.dataset.fgwBrandTint
     if (next.source.kind === 'video') body.dataset.fgwVideo = 'on'
     else delete body.dataset.fgwVideo
   }
@@ -629,7 +651,7 @@ function sampleSource(next) {
       analyzePixels(video).then((sample) => {
         runtime.sample = sample
         runtime.derived = paletteFromSample(sample)
-        if (state && (state.autoVeil || state.palette === 'image')) applyState(state)
+        if (state && (state.autoVeil || state.palette === 'image' || state.palette === 'system')) applyState(state)
       })
     }
     // Drawing a video before it has a frame yields black, so wait for data.
@@ -648,7 +670,7 @@ function sampleSource(next) {
     analyzePixels(image).then((sample) => {
       runtime.sample = sample
       runtime.derived = paletteFromSample(sample)
-      if (state && (state.autoVeil || state.palette === 'image')) applyState(state)
+      if (state && (state.autoVeil || state.palette === 'image' || state.palette === 'system')) applyState(state)
     })
   }
   image.src = url[1]
@@ -934,7 +956,9 @@ window.__ModuleLoader__.load({
         ),
       )
 
-      const colorEnabled = current.palette === 'custom'
+      // Any palette can be overridden channel by channel; only "跟随壁纸" owns the
+      // colours outright, so the swatches stay live everywhere else.
+      const colorEnabled = current.palette !== 'image'
 
       return h(
         'div',
@@ -987,12 +1011,13 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'fgw-line' },
-          h('span', { className: 'fgw-label' }, '配色'),
+          { className: 'fgw-line fgw-stack' },
           h(
             'div',
             { className: 'fgw-actions' },
+            h('span', { className: 'fgw-label' }, '配色'),
             ...[
+              ['system', '跟随系统'],
               ['theme', '默认绿'],
               ['image', '跟随壁纸'],
               ['custom', '自定义'],
@@ -1002,6 +1027,10 @@ window.__ModuleLoader__.load({
                 {
                   key: id,
                   className: `fgw-btn${current.palette === id ? ' primary' : ''}`,
+                  title:
+                    id === 'system'
+                      ? '用系统自带的浅/深色，只按壁纸明暗挑一个看得清的文字色'
+                      : undefined,
                   onClick: () => {
                     setState({ ...current, palette: id })
                     if (id === 'image') sampleSource(current)
@@ -1010,6 +1039,10 @@ window.__ModuleLoader__.load({
                 label,
               ),
             ),
+          ),
+          h(
+            'div',
+            { className: 'fgw-actions fgw-inline' },
             ...[
               ['brand', '主色'],
               ['sidebar', '侧栏'],
@@ -1091,11 +1124,21 @@ window.__ModuleLoader__.load({
           ),
           h(
             'label',
-            { className: 'fgw-toggle', title: '侧栏 deepseek HARNESS 字样' },
-            '品牌字',
+            { className: 'fgw-toggle', title: '给侧栏 deepseek HARNESS 字样着色（HARNESS 徽标会一起变色）' },
+            h('input', {
+              type: 'checkbox',
+              checked: Boolean(current.brandTint),
+              onChange: (event) => setState({ ...current, brandTint: event.target.checked }),
+            }),
+            '品牌字上色',
+          ),
+          h(
+            'label',
+            { className: 'fgw-toggle', title: '品牌字颜色（勾选上面才生效）' },
             h('input', {
               type: 'color',
               className: 'fgw-swatch',
+              disabled: !current.brandTint,
               value: current.colors.wordmark || '#0f1c14',
               onChange: (event) => setColors({ wordmark: event.target.value }),
             }),
@@ -1105,7 +1148,7 @@ window.__ModuleLoader__.load({
             {
               type: 'button',
               className: 'fgw-btn',
-              onClick: () => setColors({ whale: '', wordmark: '' }),
+              onClick: () => setState({ ...current, brandTint: false, colors: { ...current.colors, whale: '', wordmark: '' } }),
             },
             '跟随主题',
           ),

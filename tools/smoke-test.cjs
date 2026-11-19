@@ -86,6 +86,7 @@ store.set(
     source: { kind: 'preset', id: 'meadow' },
     veil: 0.3,
     palette: 'custom',
+    brandTint: true,
     colors: { brand: '', sidebar: '#2e8b57', bubble: '#2e8b57', text: '', whale: '#123456', wordmark: '#654321' },
     alpha: { sidebar: 40, bubble: 55 },
     chips: {

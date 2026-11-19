@@ -16,12 +16,13 @@
 - **设置项**：注册到 `settings.general.item`（id `fresh-green-wallpaper`，order 20），分七行：
   1. 壁纸：画廊缩略图（内置图 / “我的图片” / “视频”块）+ 上传图片 / 上传视频 / 恢复默认
   2. 透明度：滑块 0–100%（默认 34%）+「跟随壁纸自动」
-  3. 配色：默认绿 / 跟随壁纸 / 自定义 + 主色 / 侧栏 / 气泡 / 文字四个取色器，每个带 **取色**（点壁纸取色）
+  3. 配色：跟随系统 / 默认绿 / 跟随壁纸 / 自定义（各占一行按钮），下一行是主色 / 侧栏 / 气泡 / 文字四个取色器，除「跟随壁纸」外任何模式都能单独覆盖，每个带 **取色**（点壁纸取色）；「跟随系统」用宿主浅/深色 + 按壁纸亮度自动挑文字色（`contrastText()`）
   4. 透光：侧栏 / 气泡不透明度（默认 62% / 88%），把用户挑的颜色变成 `rgba(h,alpha)`，不糊住壁纸
-  5. 品牌：鲸鱼 / 品牌字颜色（`--fgw-whale` / `--fgw-brandtext`），「跟随主题」清空
+  5. 品牌：鲸鱼颜色（`--fgw-whale`）+「品牌字上色」开关（开启才写 `--fgw-brandtext` 并给 `body` 打 `data-fgw-brand-tint`），「跟随主题」清空两者
   6. 快捷条：开关 + 条目列表（名称 / 插入文字 / 颜色 / 取色 / 删除）
   7. 字体与主题：字体下拉；名字输入 + 保存主题 + 已存主题按钮（`⌃⌥n`）+ `×` 删除
-- **品牌着色**：鲸鱼是宿主的 `<canvas data-home-whale>`，其 `fillStyle` 读自 `getComputedStyle(canvas).color`，所以 CSS 里把它 `filter: none` 并改 `color: var(--fgw-whale)`；侧栏字样走 `[class*='_brandName']` / `[class*='_brandIdentity']` 的 `color` 与 SVG `fill`。都属于“跟随宿主标记”的软着色。
+- **品牌着色**：鲸鱼是宿主的 `<canvas data-home-whale>`，其 `fillStyle` 读自 `getComputedStyle(canvas).color`，所以 CSS 里把它 `filter: none` 并改 `color: var(--fgw-whale)`；侧栏字样只在勾选「品牌字上色」时才写 `color`（`body[data-fgw-brand-tint='on'] [class*='_brandName']` 等），因为那组标记里同时包含 `HARNESS` 徽标，无条件染色会让徽标和背景同色而“消失”。两者都不替换宿主组件，属于软着色。
+- **顶栏与侧栏同层**：Windows 布局里标题栏条带 `[class*='_frame']::before` 与侧栏 `[class*='_sidebarCol']` 共用同一组背景来源，插件把两者都设成 `var(--fgw-sidebar, 磨砂白/深)`，所以顶部与侧栏是连续的一层，不会一边有色一边透明。
 - **快捷条 dock**：注册到 `conversation.input.dock`（id `fresh-green-chips`，order 5），渲染首字母圆角图标；点击时按 `[data-composer] textarea` → `textarea` → `[contenteditable]` 顺序找输入框，用 `setRangeText` + `input` 事件把文字插进去。
 - **快捷键**：`Ctrl+Alt+1…9` 应用第 n 套已存主题，`Ctrl+Alt+0` 恢复默认（`installShortcuts` 里监听 keydown，忽略带 Shift 的组合）。
 - **持久化**：
