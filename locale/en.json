@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Fresh Green Skin",
-    "description": "Fresh white-green theme with custom wallpapers (image/video), one-click presets, paper-anchored palettes, translucent panes, brand colours, custom logo, quick chips, fonts, named themes and theme import/export",
-    "detail": "Settings → General → Wallpaper: four one-click presets (Fresh green / Full photo / Follow system / Pure paper) set the overall look, then tweak below. Bundled 4K photo, your own image or a looping video; palettes that follow the host theme, a bundled green, the wallpaper, or your own colours — set the paper anchor once and panels and borders follow, or override accent, sidebar, bubbles and text and pick colours straight off the photo. Translucent sidebar and bubbles, whale and wordmark colours, upload your own brand logo, quick-launch chips, a font picker, themes you can save, export to JSON and import from others, switched with Ctrl+Alt+digit."
+    "description": "Fresh white-green skin: photo or video wallpaper, auto contrast scrim, five system papers",
+    "detail": "Upload a photo or a video as the wallpaper: the scrim and the ink follow the picture's brightness, so text stays readable on any backdrop. Comes with five system papers, five colour anchors, a fully see-through sidebar, one-click presets, theme import/export, a custom logo, a quick-launch chip dock, font choice and shortcut-switched themes."
   }
 }

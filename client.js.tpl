@@ -62,7 +62,7 @@ const CSS = `
 body[data-fresh-skin='on'] {
   background-color: #eef6f0 !important;
   background-image:
-    linear-gradient(rgba(255,255,255,var(--fgw-veil,${DEFAULT_VEIL})), rgba(255,255,255,var(--fgw-veil,${DEFAULT_VEIL}))),
+    linear-gradient(rgba(var(--fgw-scrim, 255,255,255),var(--fgw-veil,${DEFAULT_VEIL})), rgba(var(--fgw-scrim, 255,255,255),var(--fgw-veil,${DEFAULT_VEIL}))),
     var(--fgw-image, none) !important;
   background-size: auto, cover !important;
   background-position: center center, center center !important;
@@ -78,16 +78,16 @@ body[data-fresh-skin='on'][data-fgw-video='on'] {
 }
 body[data-ds-dark-theme][data-fresh-skin='on'] {
   background-image:
-    linear-gradient(rgba(6,12,9,var(--fgw-veil-dark,0.60)), rgba(6,12,9,var(--fgw-veil-dark,0.60))),
+    linear-gradient(rgba(var(--fgw-scrim-dark, 6,12,9),var(--fgw-veil-dark,0.60)), rgba(var(--fgw-scrim-dark, 6,12,9),var(--fgw-veil-dark,0.60))),
     var(--fgw-image, none) !important;
 }
 /* Video wallpaper sits behind everything; the veil is a sibling overlay. */
 .fgw-video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; pointer-events: none; }
 .fgw-video-veil {
   position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: rgba(255,255,255,var(--fgw-veil,${DEFAULT_VEIL}));
+  background: rgba(var(--fgw-scrim, 255,255,255),var(--fgw-veil,${DEFAULT_VEIL}));
 }
-body[data-ds-dark-theme] .fgw-video-veil { background: rgba(6,12,9,var(--fgw-veil-dark,0.60)); }
+body[data-ds-dark-theme] .fgw-video-veil { background: rgba(var(--fgw-scrim-dark, 6,12,9),var(--fgw-veil-dark,0.60)); }
 /* The frame token is transparent so the wallpaper shows; the sidebar keeps its
    own frosted panel so navigation text stays readable. */
 body[data-fresh-skin='on'] [class*='_sidebarCol'] { background: var(--fgw-sidebar, rgba(250,253,250,0.62)) !important; }
@@ -140,7 +140,7 @@ body[data-fgw-brand-tint='on'] [class*='_titleGroup'] {
 .fgw-stack { flex-direction: column; align-items: stretch; gap: 8px; }
 .fgw-chiprow { display: flex; align-items: center; gap: 8px; }
 .fgw-chiprow .fgw-label { width: auto; }
-.fgw-label { width: 48px; flex: none; font-size: 13px; }
+.fgw-label { width: 56px; flex: none; font-size: 13px; }
 .fgw-label.auto { width: auto; white-space: nowrap; }
 .fgw-gallery { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .fgw-chip {
@@ -166,7 +166,7 @@ body[data-fgw-brand-tint='on'] [class*='_titleGroup'] {
 .fgw-slider { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .fgw-slider input[type='range'] { flex: 1; max-width: 220px; accent-color: var(--dsw-alias-brand-primary); }
 .fgw-value { font-size: 12px; color: var(--dsw-alias-label-secondary); min-width: 44px; }
-.fgw-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dsw-alias-label-secondary); cursor: pointer; }
+.fgw-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dsw-alias-label-secondary); cursor: pointer; white-space: nowrap; }
 .fgw-swatch {
   width: 26px; height: 26px; padding: 0; border-radius: 6px; cursor: pointer;
   border: 1px solid var(--dsw-alias-border-l2); background: transparent;
@@ -179,7 +179,7 @@ body[data-fgw-brand-tint='on'] [class*='_titleGroup'] {
 }
 .fgw-input { width: 132px; }
 .fgw-note { font-size: 12px; color: var(--dsw-alias-brand-primary); margin-top: 8px; }
-.fgw-hint { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+.fgw-hint { white-space: nowrap; font-size: 11px; color: var(--dsw-alias-label-tertiary); }
 .fgw-presets { display: flex; flex-wrap: wrap; gap: 8px; }
 .fgw-preset {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px; cursor: pointer;
@@ -265,13 +265,48 @@ function mixHex(a, b, t) {
   return `#${channel(one.r, two.r)}${channel(one.g, two.g)}${channel(one.b, two.b)}`
 }
 
-/** Pick readable text for the current wallpaper: dark on a light photo, light on
-    a dark one, so the "follow the system" palette never ends up unreadable. */
-function contrastText(darkMode) {
-  if (darkMode) return '#eef7f1'
+/** Luminance of whichever wallpaper is showing right now, 0 (black) to 1 (white).
+    Sampling happens for every source, so this works for photos and video frames
+    alike; 0.62 is a neutral middle when nothing could be sampled yet. */
+function wallpaperLuminance() {
   const sample = runtime.derived && runtime.derived.sample
-  const luminance = sample ? Number(sample.luminance ?? sample.l ?? 0.82) : 0.82
-  return luminance > 0.52 ? '#0f1c14' : '#f4fbf6'
+  const value = sample ? Number(sample.luminance) : NaN
+  return Number.isFinite(value) ? clamp(value, 0, 1) : 0.62
+}
+
+/** Veil strength that pushes the wallpaper behind the text to a readable floor:
+    a white scrim lifts it towards 0.78, a dark scrim drops it to 0.16. Small
+    floors keep the wallpaper visible on already-safe photos, and strong veils
+    save really bright or really dark ones. */
+function contrastVeil(photo, mode) {
+  // Light mode only needs to lift the photo to a mid tone: dark ink on 0.68 has
+  // well over 10:1 contrast, so the wallpaper keeps more of its colour. Dark
+  // mode needs a deeper scrim because light ink is less forgiving.
+  if (mode === 'dark') {
+    const veil = photo <= 0.16 ? 0.12 : (photo - 0.16) / Math.max(photo, 0.001)
+    return clamp(veil, 0.1, 0.94)
+  }
+  const veil = photo >= 0.68 ? 0.12 : (0.68 - photo) / Math.max(1 - photo, 0.001)
+  return clamp(veil, 0.1, 0.94)
+}
+
+/** System palettes: a handful of neutral papers, so "follow the system" is not a
+    single grey. `dark` tones paint dark panels and switch the text to light ink. */
+const SYSTEM_TONES = [
+  { id: 'neutral', label: '中性灰', paper: '#f4f5f4', dark: false },
+  { id: 'cool', label: '冷白', paper: '#eef3f7', dark: false },
+  { id: 'warm', label: '暖白', paper: '#f7f3ec', dark: false },
+  { id: 'slate', label: '雾灰', paper: '#e7ebe9', dark: false },
+  { id: 'ink', label: '墨黑', paper: '#20262a', dark: true },
+]
+
+function systemTone(next) {
+  return SYSTEM_TONES.find((tone) => tone.id === next.tone) || SYSTEM_TONES[0]
+}
+
+/** Pick readable text for a surface of the given luminance. */
+function inkFor(surfaceLuminance) {
+  return surfaceLuminance > 0.5 ? '#0f1c14' : '#f2faf5'
 }
 
 /** Palette for the quick-launch chips: derived from the wallpaper when possible. */
@@ -447,6 +482,9 @@ function defaults() {
     brandTint: false,
     topbarClear: false,
     neutralAccent: false,
+    tone: 'neutral',
+    autoContrast: true,
+    sidebarFill: true,
     paper: '',
     logo: '',
     hideWhale: false,
@@ -478,7 +516,7 @@ const QUICK_PRESETS = [
     label: '跟随系统',
     hint: '中性和纸，字色自动保证对比',
     dot: 'linear-gradient(90deg,#f4f4f2,#b7bcb9)',
-    value: { palette: 'system', veil: 0.34, alpha: { sidebar: 62, bubble: 88 }, paper: '', neutralAccent: true },
+    value: { palette: 'system', tone: 'neutral', veil: 0.34, alpha: { sidebar: 62, bubble: 88 }, paper: '', neutralAccent: true, autoContrast: true },
   },
   {
     id: 'plain',
@@ -544,6 +582,27 @@ function resolveVeil(next) {
   return clamp(Number.isFinite(raw) ? raw : DEFAULT_VEIL, 0, 1)
 }
 
+/** The two scrims the CSS paints: light mode over the photo, dark mode under it.
+    With automatic contrast the strength comes from the wallpaper luminance, so
+    text stays readable on any photo or video; the page can still be darkened by
+    hand once the option is switched off. */
+function resolveVeils(next) {
+  const manual = resolveVeil(next)
+  if (next.autoContrast === false) return { light: manual, dark: manual }
+  const photo = wallpaperLuminance()
+  if (next.palette === 'image') {
+    // Light mode uses dark ink, dark mode light ink: each mode gets the scrim
+    // that pushes the photo towards its own readable side.
+    return { light: contrastVeil(photo, 'light'), dark: contrastVeil(photo, 'dark') }
+  }
+  if (next.palette === 'system') {
+    const tone = systemTone(next)
+    const derived = contrastVeil(photo, tone.dark ? 'dark' : 'light')
+    return { light: derived, dark: derived }
+  }
+  return { light: manual, dark: manual }
+}
+
 function buildTokens(next) {
   const tokens = JSON.parse(JSON.stringify(BASE_TOKENS))
   const sample = next.palette === 'image' ? runtime.derived : null
@@ -551,27 +610,63 @@ function buildTokens(next) {
   const alpha = next.alpha || {}
 
   if (next.palette === 'system') {
-    // Follow whatever the host theme is: neutral frosted surfaces over the
-    // wallpaper and a text colour picked for contrast, no colour cast of ours.
-    tokens['--dsw-alias-bg-layer-1'] = { light: 'rgba(255,255,255,0.60)', dark: 'rgba(18,24,20,0.66)' }
-    tokens['--dsw-alias-bg-layer-2'] = { light: 'rgba(255,255,255,0.78)', dark: 'rgba(22,30,25,0.80)' }
-    tokens['--dsw-alias-bg-layer-3'] = { light: 'rgba(255,255,255,0.90)', dark: 'rgba(28,38,32,0.90)' }
-    tokens['--dsw-alias-label-primary'] = { light: contrastText(false), dark: '#eef7f1' }
+    // Follow one of the neutral system papers: the panels take the paper tone at
+    // the two opacity sliders, and the text colour comes from the paper itself
+    // (not from the wallpaper), so panels and prose stay readable together.
+    const tone = systemTone(next)
+    const paper = tone.paper
+    const ink = tone.dark ? '#f2faf5' : '#0f1c14'
+    const rest = tone.dark ? 'rgba(255,255,255,' : 'rgba(15,28,20,'
+    tokens['--dsw-alias-bg-layer-1'] = {
+      light: withAlpha(paper, alpha.sidebar),
+      dark: withAlpha(paper, alpha.sidebar),
+    }
+    tokens['--dsw-alias-bg-layer-2'] = {
+      light: withAlpha(paper, alpha.bubble),
+      dark: withAlpha(paper, alpha.bubble),
+    }
+    tokens['--dsw-alias-bg-layer-3'] = {
+      light: withAlpha(paper, Math.min(100, Number(alpha.bubble) + 10)),
+      dark: withAlpha(paper, Math.min(100, Number(alpha.bubble) + 10)),
+    }
+    tokens['--dsw-alias-border-l1'] = { light: `${rest}0.12)`, dark: `${rest}0.18)` }
+    tokens['--dsw-alias-border-l2'] = { light: `${rest}0.18)`, dark: `${rest}0.24)` }
+    tokens['--dsw-alias-border-l3'] = { light: `${rest}0.26)`, dark: `${rest}0.32)` }
+    tokens['--dsw-alias-label-primary'] = { light: ink, dark: ink }
+    tokens['--dsw-alias-label-secondary'] = { light: tone.dark ? '#c9d6cf' : '#3d5346', dark: tone.dark ? '#c9d6cf' : '#3d5346' }
+    tokens['--dsw-alias-label-tertiary'] = { light: tone.dark ? '#9fb0a8' : '#63806f', dark: tone.dark ? '#9fb0a8' : '#63806f' }
     if (next.neutralAccent) {
       // Some people want the host look end to end: drop the green accent too.
-      const slate = '#4c5f56'
-      tokens['--dsw-alias-brand-primary'] = { light: slate, dark: '#a9c3b6' }
-      tokens['--dsw-alias-state-business-primary'] = { light: slate, dark: '#a9c3b6' }
+      const slate = tone.dark ? '#a9c3b6' : '#4c5f56'
+      tokens['--dsw-alias-brand-primary'] = { light: slate, dark: slate }
+      tokens['--dsw-alias-state-business-primary'] = { light: slate, dark: slate }
     }
   }
 
-  if (sample) {
-    tokens['--dsw-alias-brand-primary'] = { light: sample.brand, dark: sample.brandDark }
-    tokens['--dsw-alias-state-business-primary'] = { light: sample.brand, dark: sample.brandDark }
-    tokens['--dsw-alias-state-success-primary'] = { light: sample.brand, dark: sample.brandDark }
-    tokens['--dsw-alias-label-primary'] = { light: sample.text, dark: '#eaf5ee' }
-    tokens['--dsw-alias-bg-layer-2'] = { light: sample.bubble, dark: 'rgba(24,38,30,0.88)' }
-    tokens['--dsw-alias-bg-layer-3'] = { light: sample.bubble, dark: 'rgba(30,46,37,0.93)' }
+  if (next.palette === 'image') {
+    // The prose sits on the *veiled* wallpaper, not on the raw photo, so the ink
+    // has to follow the surface that the veil produces. contrastVeil normalises
+    // that surface, which keeps text readable on bright and dark photos alike.
+    const veils = resolveVeils(next)
+    const photo = wallpaperLuminance()
+    const lightSurface = photo * (1 - veils.light) + veils.light
+    const darkSurface = photo * (1 - veils.dark) + 0.04 * veils.dark
+    tokens['--dsw-alias-label-primary'] = { light: inkFor(lightSurface), dark: inkFor(darkSurface) }
+    tokens['--dsw-alias-label-secondary'] = {
+      light: mixHex(inkFor(lightSurface), '#ffffff', 0.35),
+      dark: mixHex(inkFor(darkSurface), '#000000', 0.25),
+    }
+    tokens['--dsw-alias-label-tertiary'] = {
+      light: mixHex(inkFor(lightSurface), '#ffffff', 0.58),
+      dark: mixHex(inkFor(darkSurface), '#000000', 0.45),
+    }
+    if (sample) {
+      tokens['--dsw-alias-brand-primary'] = { light: sample.brand, dark: sample.brandDark }
+      tokens['--dsw-alias-state-business-primary'] = { light: sample.brand, dark: sample.brandDark }
+      tokens['--dsw-alias-state-success-primary'] = { light: sample.brand, dark: sample.brandDark }
+      tokens['--dsw-alias-bg-layer-2'] = { light: sample.bubble, dark: 'rgba(24,38,30,0.88)' }
+      tokens['--dsw-alias-bg-layer-3'] = { light: sample.bubble, dark: 'rgba(30,46,37,0.93)' }
+    }
   }
 
   if (next.paper) {
@@ -580,7 +675,10 @@ function buildTokens(next) {
     // palette needs one decision instead of eight.
     const paper = String(next.paper)
     const accent = colors.brand || (sample ? sample.brand : '#2e8b57')
-    const text = colors.text || (sample ? sample.text : '#0f1c14')
+    const paperVeils = resolveVeils(next)
+    const paperPhoto = wallpaperLuminance()
+    const paperSurface = paperPhoto * (1 - paperVeils.light) + paperVeils.light
+    const text = colors.text || (sample ? inkFor(paperSurface) : '#0f1c14')
     const darkPaper = mixHex(paper, '#0a110c', 0.82)
     const darkText = '#eaf5ee'
     tokens['--dsw-alias-bg-layer-1'] = { light: withAlpha(paper, alpha.sidebar), dark: withAlpha(darkPaper, alpha.sidebar) }
@@ -624,9 +722,20 @@ function applyTokens(next) {
 
 function applyState(next) {
   const root = document.documentElement
-  const veil = resolveVeil(next)
-  root.style.setProperty('--fgw-veil', String(veil))
-  root.style.setProperty('--fgw-veil-dark', String(veil))
+  const veils = resolveVeils(next)
+  root.style.setProperty('--fgw-veil', String(veils.light))
+  root.style.setProperty('--fgw-veil-dark', String(veils.dark))
+  // A dark paper needs a light ink, so its scrim darkens; a light paper lifts the
+  // photo towards white instead. Both scrims are variables for exactly that reason.
+  const tone = next.palette === 'system' ? systemTone(next) : null
+  if (tone) {
+    const scrim = tone.dark ? '6,12,9' : '255,255,255'
+    root.style.setProperty('--fgw-scrim', scrim)
+    root.style.setProperty('--fgw-scrim-dark', scrim)
+  } else {
+    root.style.removeProperty('--fgw-scrim')
+    root.style.removeProperty('--fgw-scrim-dark')
+  }
   root.style.setProperty('--fgw-image', backgroundCss(next))
   root.style.setProperty('--fgw-font', next.font || 'inherit')
 
@@ -634,8 +743,9 @@ function applyState(next) {
   const alpha = next.alpha || {}
   // The paper anchor doubles as the sidebar tint, so one colour choice keeps the
   // frame, the sidebar strip and the panels in the same family.
-  const sidebar = colors.sidebar || next.paper
-  if (sidebar) root.style.setProperty('--fgw-sidebar', withAlpha(sidebar, alpha.sidebar))
+  const sidebar = colors.sidebar || (tone ? tone.paper : next.paper)
+  if (next.sidebarFill === false) root.style.setProperty('--fgw-sidebar', 'transparent')
+  else if (sidebar) root.style.setProperty('--fgw-sidebar', withAlpha(sidebar, alpha.sidebar))
   else root.style.removeProperty('--fgw-sidebar')
   // "透明顶栏": let the wallpaper run to the very top, keeping the sidebar frosted.
   if (next.topbarClear) root.style.setProperty('--fgw-topbar', 'transparent')
@@ -1004,7 +1114,10 @@ window.__ModuleLoader__.load({
         return () => listeners.delete(listener)
       }, [])
 
-      const veil = Math.round(resolveVeil(current) * 100)
+      // What the eye actually sees: in "follow the system" mode the scrim is
+      // derived from the wallpaper, so show that number instead of the raw slider.
+      const veil = Math.round(resolveVeils(current).light * 100)
+      const autocontrast = (current.palette === 'system' || current.palette === 'image') && current.autoContrast !== false
 
       const pickPreset = (preset) => {
         setNote('')
@@ -1290,7 +1403,7 @@ window.__ModuleLoader__.load({
               max: 100,
               step: 1,
               value: veil,
-              disabled: current.autoVeil,
+              disabled: current.autoVeil || autocontrast,
               onChange: (event) => {
                 const next = clamp(Number(event.target.value) / 100, 0, 1)
                 setState({ ...current, veil: next, autoVeil: false })
@@ -1308,6 +1421,9 @@ window.__ModuleLoader__.load({
               }),
               '跟随壁纸自动',
             ),
+            autocontrast
+              ? h('span', { className: 'fgw-hint' }, '按壁纸明暗自动定遮罩，保证字看得清')
+              : null,
           ),
         ),
         h(
@@ -1352,7 +1468,43 @@ window.__ModuleLoader__.load({
                   '中性强调色',
                 )
               : null,
+            current.palette === 'system' || current.palette === 'image'
+              ? h(
+                  'label',
+                  { className: 'fgw-toggle', title: '壁纸太亮或太暗时自动加深遮罩，保证正文和面板文字都看得清' },
+                  h('input', {
+                    type: 'checkbox',
+                    checked: current.autoContrast !== false,
+                    onChange: (event) => setState({ ...current, autoContrast: event.target.checked }),
+                  }),
+                  '自动保证对比',
+                )
+              : null,
           ),
+          current.palette === 'system'
+            ? h(
+                'div',
+                { className: 'fgw-actions fgw-inline' },
+                h('span', { className: 'fgw-label auto' }, '系统色'),
+                ...SYSTEM_TONES.map((tone) =>
+                  h(
+                    'button',
+                    {
+                      key: tone.id,
+                      type: 'button',
+                      className: `fgw-btn${(current.tone || SYSTEM_TONES[0].id) === tone.id ? ' primary' : ''}`,
+                      title: tone.dark ? '深色纸面，正文自动转浅色字' : '浅色纸面，正文保持深色字',
+                      onClick: () => setState({ ...current, tone: tone.id }),
+                    },
+                    h('span', {
+                      className: 'fgw-swatch',
+                      style: { background: tone.paper, display: 'inline-block', width: '14px', height: '14px', borderRadius: '4px', marginRight: '6px', verticalAlign: '-2px' },
+                    }),
+                    tone.label,
+                  ),
+                ),
+              )
+            : null,
           h(
             'div',
             { className: 'fgw-actions fgw-inline' },
@@ -1429,6 +1581,21 @@ window.__ModuleLoader__.load({
             h('span', { className: 'fgw-value' }, `${Number((current.alpha || {}).bubble ?? 88)}%`),
           ),
           h('span', { className: 'fgw-hint' }, '越低越能看见壁纸'),
+        ),
+        h(
+          'div',
+          { className: 'fgw-line' },
+          h('span', { className: 'fgw-label' }, ''),
+          h(
+            'label',
+            { className: 'fgw-toggle', title: '关掉后侧栏完全不铺色，壁纸直接透上来；开着则按上面的百分比铺填充色' },
+            h('input', {
+              type: 'checkbox',
+              checked: current.sidebarFill !== false,
+              onChange: (event) => setState({ ...current, sidebarFill: event.target.checked }),
+            }),
+            '侧栏填充',
+          ),
           h(
             'label',
             { className: 'fgw-toggle', title: '顶栏不铺磨砂，让照片一直铺到最上面' },

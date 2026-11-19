@@ -388,6 +388,170 @@ check(Boolean(saved && saved.alpha && saved.alpha.sidebar === 40), 'sidebar opac
 check(Boolean(saved && saved.chips && Array.isArray(saved.chips.items)), 'quick-launch chips survive a reload')
 check(Boolean(saved && typeof saved.topbarClear === 'boolean'), 'topbar flag survives a reload')
 
+// --- 1.8 system palettes: paper tones, contrast scrim, see-through sidebar ---
+/** Load the bundle a second time with its own fake page, so a "follow the
+    system" state can be exercised without disturbing the checks above. */
+function loadScenario(state) {
+  const vars = new Map()
+  const style = {
+    setProperty(name, value) {
+      vars.set(name, value)
+    },
+    removeProperty(name) {
+      vars.delete(name)
+    },
+  }
+  const element = (tag) => ({
+    tagName: String(tag).toUpperCase(),
+    textContent: '',
+    className: '',
+    dataset: {},
+    style,
+    children: [],
+    appendChild(child) {
+      this.children.push(child)
+      return child
+    },
+    remove() {},
+    setAttribute() {},
+    play() {
+      return Promise.resolve()
+    },
+    addEventListener() {},
+    removeEventListener() {},
+  })
+  const head = element('head')
+  const body = element('body')
+  const page = {
+    head,
+    body,
+    documentElement: { dataset: {}, style },
+    createElement: (tag) => element(tag),
+    querySelector: () => null,
+  }
+  head.appendChild = () => {
+    return undefined
+  }
+  const memo = new Map([['fresh-green-skin:state', JSON.stringify(state)]])
+  const storage = {
+    getItem: (key) => (memo.has(key) ? memo.get(key) : null),
+    setItem: (key, value) => memo.set(key, String(value)),
+    removeItem: (key) => memo.delete(key),
+  }
+  let entry = null
+  const tokens = []
+  const slots = []
+  const scope = {
+    window: {
+      __ModuleLoader__: {
+        load(value) {
+          entry = value
+        },
+      },
+      addEventListener() {},
+      removeEventListener() {},
+    },
+    document: page,
+    localStorage: storage,
+    require: requireShim,
+    console: { log() {}, warn() {}, error() {} },
+    Image: FakeImage,
+    URL: { createObjectURL: () => 'blob:stub', revokeObjectURL() {} },
+  }
+  scope.globalThis = scope
+  vm.createContext(scope)
+  vm.runInContext(source, scope, { filename: 'client.js' })
+  const api = entry.factory(requireShim)
+  const host = {
+    effect(fn) {
+      const dispose = fn()
+      return typeof dispose === 'function' ? dispose : () => {}
+    },
+    theme: {
+      overrideTokens(source, map) {
+        tokens.push(map)
+        return () => {}
+      },
+    },
+    slots: {
+      inject(name, register) {
+        slots.push(register())
+      },
+      register(definition, component) {
+        slots.push({ definition, component })
+        return () => {}
+      },
+    },
+  }
+  api.apply(host)
+  const row = slots.find((item) => item && item.definition && item.definition.id === 'fresh-green-wallpaper')
+  // The fake react keeps hooks in module scope, so each scenario starts clean.
+  hookState.length = 0
+  hookIndex = 0
+  const tree = row && row.component ? row.component({}) : null
+  return { vars, tokens: tokens[0] || {}, tree, body }
+}
+
+const base = {
+  source: { kind: 'preset', id: 'meadow' },
+  veil: 0.34,
+  autoVeil: false,
+  palette: 'system',
+  brandTint: false,
+  topbarClear: false,
+  neutralAccent: false,
+  tone: 'ink',
+  autoContrast: true,
+  sidebarFill: false,
+  paper: '',
+  logo: '',
+  hideWhale: false,
+  colors: { brand: '', sidebar: '', bubble: '', text: '', whale: '', wordmark: '' },
+  alpha: { sidebar: 62, bubble: 88 },
+  chips: { enabled: true, items: [] },
+  font: '',
+}
+
+const dark = loadScenario(base)
+check(dark.vars.get('--fgw-scrim') === '6,12,9', 'dark paper darkens the scrim')
+check(dark.vars.get('--fgw-sidebar') === 'transparent', 'the sidebar can be fully see-through')
+check(
+  Boolean(dark.tokens['--dsw-alias-label-primary'] && dark.tokens['--dsw-alias-label-primary'].light === '#f2faf5'),
+  'dark paper switches the text to light ink',
+)
+check(
+  Boolean(dark.tokens['--dsw-alias-bg-layer-2'] && dark.tokens['--dsw-alias-bg-layer-2'].light.startsWith('rgba(32,38,42')),
+  'panels take the chosen system paper',
+)
+const darkText = dark.tree ? text(dark.tree).join(' ') : ''
+check(darkText.includes('系统色'), 'the system palette shows the paper tones')
+check(darkText.includes('墨黑'), 'system tones include a dark paper')
+check(darkText.includes('侧栏填充'), 'the sidebar fill switch is rendered')
+check(darkText.includes('自动保证对比'), 'automatic contrast can be switched off')
+
+const light = loadScenario({ ...base, tone: 'warm', sidebarFill: true })
+check(light.vars.get('--fgw-scrim') === '255,255,255', 'light paper lifts the scrim towards white')
+const lightVeil = Number(light.vars.get('--fgw-veil'))
+check(lightVeil > 0.1 && lightVeil <= 0.94, `the light veil is derived from the wallpaper (${lightVeil})`)
+check(
+  Boolean(light.tokens['--dsw-alias-bg-layer-2'] && light.tokens['--dsw-alias-bg-layer-2'].light.startsWith('rgba(247,243,236')),
+  'the warm paper paints the panels',
+)
+
+const photo = loadScenario({ ...base, palette: 'image', tone: 'neutral', sidebarFill: true })
+const photoVeil = Number(photo.vars.get('--fgw-veil'))
+check(photoVeil > 0.1 && photoVeil <= 0.94, `wallpaper-derived palettes get a contrast veil (${photoVeil})`)
+check(!photo.vars.has('--fgw-scrim'), 'wallpaper-derived palettes keep the default scrim direction')
+check(
+  Boolean(
+    photo.tokens['--dsw-alias-label-primary'] &&
+      photo.tokens['--dsw-alias-label-primary'].light === '#0f1c14' &&
+      photo.tokens['--dsw-alias-label-primary'].dark === '#f2faf5',
+  ),
+  'wallpaper-derived ink follows the veiled surface in both modes',
+)
+
+
 if (failures.length) {
   console.log(`\n${failures.length} check(s) failed`)
   process.exit(1)
