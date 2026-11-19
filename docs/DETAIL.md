@@ -15,7 +15,7 @@
   - “透明度”滑块 0–100%（默认 34%）
   - “上传图片”（`<input type=file accept="image/*">`，选中后用 canvas 缩到最长边 1920、转 JPEG 0.86）
   - “恢复默认”
-- **持久化**：`localStorage`（`fresh-green-skin:wallpaper` 存完整 CSS background-image，`fresh-green-skin:veil` 存透明度），只作用于当前浏览器 origin，不写 Host 配置、不跨设备同步。滑块拖动时只重写 veil 字段，避免每次重写大字符串。
+- **持久化**：`localStorage`（`fresh-green-skin:wallpaper` 存 `preset:<id>` 或 `custom:<CSS>`，`fresh-green-skin:veil` 存透明度），只作用于当前浏览器 origin，不写 Host 配置、不跨设备同步。滑块拖动时只重写 veil 字段，避免每次重写大字符串。
 
 ## 文件
 

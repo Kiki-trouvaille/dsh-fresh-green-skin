@@ -25,8 +25,6 @@ const DEFAULT_VEIL = 0.34
 /** Injected by tools/build-client.py: [{ id, label, value }], value is a CSS background-image. */
 const PRESETS = __PRESETS__
 
-const DEFAULT_BG = PRESETS[0].value
-
 const TOKENS = {
   '--dsw-alias-bg-base': { light: 'rgba(255,255,255,0)', dark: 'rgba(0,0,0,0)' },
   // Windows paints the whole app frame with the sidebar token, so it has to be
@@ -111,23 +109,45 @@ const listeners = new Set()
 let state = null
 
 function defaults() {
-  return { bg: DEFAULT_BG, veil: DEFAULT_VEIL }
+  const preset = PRESETS[0]
+  return { bg: preset.value, token: `preset:${preset.id}`, veil: DEFAULT_VEIL }
 }
 
-/** Legacy builds stored the raw data URI instead of a full CSS background-image. */
-function normalizeBg(value) {
-  if (!value) return DEFAULT_BG
+function presetById(id) {
+  return PRESETS.find((preset) => preset.id === id)
+}
+
+/** Accept either a full CSS background-image or a bare data URI. */
+function wrapCss(value) {
   return /^(url|linear-gradient|radial-gradient|conic-gradient)\(/.test(value) ? value : `url("${value}")`
+}
+
+/**
+ * Stored values are either "preset:<id>" (so replacing a bundled wallpaper in
+ * a later release shows up automatically) or "custom:<css>" for an upload.
+ * Builds up to 1.3.0 wrote the whole background-image string instead.
+ */
+function resolveStored(raw) {
+  const fallback = defaults()
+  if (!raw) return fallback
+  if (raw.startsWith('preset:')) {
+    const preset = presetById(raw.slice('preset:'.length))
+    return preset ? { ...fallback, bg: preset.value, token: raw } : fallback
+  }
+  if (raw.startsWith('custom:')) {
+    return { ...fallback, bg: wrapCss(raw.slice('custom:'.length)), token: raw }
+  }
+  return { ...fallback, bg: wrapCss(raw), token: `custom:${raw}` }
 }
 
 function readStored() {
   const fallback = defaults()
   try {
-    const bg = normalizeBg(localStorage.getItem(IMAGE_KEY))
+    const resolved = resolveStored(localStorage.getItem(IMAGE_KEY))
     const storedVeil = localStorage.getItem(VEIL_KEY)
     const veil = storedVeil === null ? fallback.veil : Number(storedVeil)
     return {
-      bg,
+      ...resolved,
       veil: Number.isFinite(veil) ? Math.min(1, Math.max(0, veil)) : fallback.veil,
     }
   } catch {
@@ -147,14 +167,14 @@ function applyState(next) {
   root.style.setProperty('--fgw-veil-dark', String(next.veil))
 }
 
-let persistedBg = null
+let persistedToken = null
 
 function persist(next) {
   try {
-    if (next.bg.length > 4 * 1024 * 1024) throw new Error('图片太大，无法保存')
-    if (persistedBg !== next.bg) {
-      localStorage.setItem(IMAGE_KEY, next.bg)
-      persistedBg = next.bg
+    if (next.token.length > 4 * 1024 * 1024) throw new Error('图片太大，无法保存')
+    if (persistedToken !== next.token) {
+      localStorage.setItem(IMAGE_KEY, next.token)
+      persistedToken = next.token
     }
     localStorage.setItem(VEIL_KEY, String(next.veil))
     return null
@@ -230,13 +250,13 @@ window.__ModuleLoader__.load({
       }, [])
 
       const transparency = Math.round(current.veil * 100)
-      const isPreset = PRESETS.some((preset) => preset.value === current.bg)
+      const isPreset = current.token.startsWith('preset:')
 
       const pick = () => fileRef.current && fileRef.current.click()
 
       const choosePreset = (preset) => {
         setNote('')
-        setState({ ...current, bg: preset.value })
+        setState({ ...current, bg: preset.value, token: `preset:${preset.id}` })
       }
 
       const onFile = (event) => {
@@ -249,7 +269,7 @@ window.__ModuleLoader__.load({
             setNote(`换图失败：${error ? error.message : '未知错误'}`)
             return
           }
-          const failure = setState({ ...current, bg: value })
+          const failure = setState({ ...current, bg: value, token: `custom:${value}` })
           setNote(failure ? `换图失败：${failure}` : '壁纸已更换')
         })
       }
@@ -263,7 +283,7 @@ window.__ModuleLoader__.load({
         h('button', {
           key: preset.id,
           type: 'button',
-          className: `fgw-chip${current.bg === preset.value ? ' active' : ''}`,
+          className: `fgw-chip${current.token === `preset:${preset.id}` ? ' active' : ''}`,
           title: preset.label,
           'aria-label': preset.label,
           style: { backgroundImage: preset.value },
