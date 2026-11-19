@@ -184,15 +184,15 @@ if (tree) {
   const chips = nodes(tree).filter(
     (node) => typeof node.props.className === 'string' && node.props.className.includes('fgw-chip'),
   )
-  check(chips.length >= 4, `row renders the preset gallery (${chips.length} chips)`)
+  check(chips.length >= 1, `row renders the preset gallery (${chips.length} chips)`)
   check(chips.filter((chip) => chip.props.className.includes('active')).length === 1, 'exactly one chip is active')
   check(
-    chips.some((chip) => String(chip.props.style.backgroundImage).startsWith('url(')),
-    'one preset is a photo',
+    chips.every((chip) => /^(url|linear-gradient|radial-gradient)\(/.test(String(chip.props.style.backgroundImage))),
+    'every preset has a usable background-image',
   )
   check(
-    chips.some((chip) => String(chip.props.style.backgroundImage).includes('gradient(')),
-    'one preset is a gradient',
+    chips.some((chip) => String(chip.props.style.backgroundImage).includes('data:image/')),
+    'the default preset is an inlined photo',
   )
 }
 

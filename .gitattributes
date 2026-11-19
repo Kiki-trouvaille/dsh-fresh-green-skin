@@ -2,5 +2,6 @@
 
 *.png binary
 *.webp binary
+*.avif binary
 *.jpg binary
 *.ico binary

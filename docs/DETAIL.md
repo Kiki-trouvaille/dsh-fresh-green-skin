@@ -1,6 +1,6 @@
 # 清新白绿皮肤（Fresh Green Skin）
 
-给 DSH Web 界面加一层“白绿清新”外观：青竹绿品牌色、半透明的面板，背后铺一张壁纸。内置 4 张壁纸（1 张照片 + 3 张渐变）可随时切换，也可以上传自己的图片、用透明度滑块决定壁纸露多少。
+给 DSH Web 界面加一层“白绿清新”外观：青竹绿品牌色、半透明的面板，背后铺一张壁纸（默认是 4K 照片「山舍晴暮」）。壁纸以画廊形式出现，点缩略图切换，也可以上传自己的图片、用透明度滑块决定壁纸露多少。
 
 ## 组成
 
@@ -9,7 +9,7 @@
   - 外框：Windows 下整个应用框（`[data-windows-titlebar] .frame`）是用 `--dsw-specific-sidebar-fill` 画的，所以这个 token 也设成全透明；侧栏的霜白改由 `body[data-fresh-skin='on'] [class*='_sidebarCol']` 单独补（CSS Modules 的哈希前缀会变，`_sidebarCol` 后缀稳定）。
   - 品牌色：`--dsw-alias-brand-primary`、`state-business-primary`、`state-success-primary` → `#2e8b57`（深色 `#7ed7a6`、`#6fcf97`）。
   - 边框与文字：`border-l1/l2/l3` 带绿调，`label-primary` 墨绿 `#0f1c14`。
-- **壁纸**：`body[data-fresh-skin='on']` 的 `background-image` = 一层纯色遮罩 + `--fgw-image`（一张照片的 `url("data:image/webp;base64,…")`，或一段渐变），`cover` + `fixed` 铺满视口。遮罩 alpha 由 `--fgw-veil`（浅色）/ `--fgw-veil-dark`（深色）驱动，滑块实时改这两个变量。透明度 0% 时遮罩完全透明，照片原样显示。
+- **壁纸**：`body[data-fresh-skin='on']` 的 `background-image` = 一层纯色遮罩 + `--fgw-image`（一张照片的 `url("data:image/avif;base64,…")`，或一段纯 CSS 渐变），`cover` + `fixed` 铺满视口。遮罩 alpha 由 `--fgw-veil`（浅色）/ `--fgw-veil-dark`（深色）驱动，滑块实时改这两个变量。透明度 0% 时遮罩完全透明，照片原样显示。
 - **设置项**：注册到 `settings.general.item`（id `fresh-green-wallpaper`，order 20），在 **设置 → 通用** 里显示“壁纸”一行：
   - 左侧壁纸画廊：内置壁纸缩略图（选中项绿描边），上传过自定义图片时额外多一个“我的图片”缩略图
   - “透明度”滑块 0–100%（默认 34%）
@@ -22,11 +22,11 @@
 | 文件 | 作用 |
 | --- | --- |
 | `client.js.tpl` | 可读模板（token、CSS、设置行组件），含 `__PRESETS__` 占位符 |
-| `client.js` | 由模板 + 壁纸清单生成，实际被加载（约 217 KB，不要手改） |
-| `assets/presets/manifest.json` | 内置壁纸清单：`file` 指向图片，`css` 为纯 CSS 渐变；**第一项是默认壁纸** |
-| `assets/presets/meadow.png` | 默认照片壁纸原图 |
-| `assets/wallpaper.webp` | 默认照片压好的 WebP（q78，约 152 KB，由脚本另存） |
-| `tools/build-client.py` | 读清单、压图、把整份清单注入模板，生成 `client.js` |
+| `client.js` | 由模板 + 壁纸清单生成，实际被加载（约 964 KB，含内联壁纸，不要手改） |
+| `assets/presets/manifest.json` | 内置壁纸清单：`file` 指向图片，`css` 为纯 CSS 渐变；**第一项是默认壁纸**（当前只有一张：山舍晴暮） |
+| `assets/presets/meadow.jpg` | 默认壁纸原图（2730×1536，1.2 MB） |
+| `assets/wallpaper.avif` | 默认照片压好的 AVIF（q60，约 713 KB，由脚本另存） |
+| `tools/build-client.py` | 读清单、压图（AVIF q60，超过 3840 宽才缩）、把整份清单注入模板，生成 `client.js` |
 | `tools/smoke-test.cjs` | 离线冒烟测试（假 DSH 客户端 + 真渲染设置行） |
 | `screenshot/` | README 用的效果图 |
 

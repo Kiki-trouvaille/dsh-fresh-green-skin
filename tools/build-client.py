@@ -1,9 +1,10 @@
 """Generate client.js from client.js.tpl plus the wallpaper presets.
 
 The plugin's client entry is a plain browser script, so wallpapers have to
-travel with it: every photo in assets/presets is downscaled and inlined as a
-WebP data URI, gradients are inlined as plain CSS. The list and its order come
-from assets/presets/manifest.json — the first entry is the default wallpaper.
+travel with it: every photo in assets/presets is inlined as an AVIF data URI
+(AVIF keeps a 4K photo around 700 KB where WebP needs 900 KB+), gradients are
+inlined as plain CSS. The list and its order come from
+assets/presets/manifest.json — the first entry is the default wallpaper.
 
 Usage:
     python tools/build-client.py
@@ -23,12 +24,16 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"
 PRESETS_DIR = ASSETS / "presets"
 MANIFEST = PRESETS_DIR / "manifest.json"
-WALL = ASSETS / "wallpaper.webp"
+WALL = ASSETS / "wallpaper.avif"
 TPL = ROOT / "client.js.tpl"
 OUT = ROOT / "client.js"
-QUALITY = 78
-MAX_WIDTH = 1920
-IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
+
+# 4K photos stay at their native size: downscaling to 1920 looked soft on
+# hi-dpi screens. AVIF q60 is visually lossless at 100% for photographic
+# content and roughly a third smaller than WebP at the same quality.
+MAX_WIDTH = 3840
+AVIF_QUALITY = 60
+AVIF_SPEED = 4
 
 
 def encode_photo(path: pathlib.Path) -> tuple[str, bytes]:
@@ -37,9 +42,16 @@ def encode_photo(path: pathlib.Path) -> tuple[str, bytes]:
         height = round(image.height * MAX_WIDTH / image.width)
         image = image.resize((MAX_WIDTH, height), Image.LANCZOS)
     buffer = io.BytesIO()
-    image.save(buffer, "WEBP", quality=QUALITY, method=6)
+    try:
+        image.save(buffer, "AVIF", quality=AVIF_QUALITY, speed=AVIF_SPEED)
+        mime = "avif"
+    except (KeyError, OSError):
+        # Pillow built without AVIF support: fall back to WebP.
+        buffer = io.BytesIO()
+        image.save(buffer, "WEBP", quality=82, method=6)
+        mime = "webp"
     data = buffer.getvalue()
-    return base64.b64encode(data).decode("ascii"), data
+    return base64.b64encode(data).decode("ascii"), data, mime
 
 
 def build_presets() -> list[dict[str, str]]:
@@ -57,12 +69,17 @@ def build_presets() -> list[dict[str, str]]:
         source = PRESETS_DIR / entry["file"]
         if not source.exists():
             raise SystemExit(f"missing preset image {source}")
-        b64, data = encode_photo(source)
+        b64, data, mime = encode_photo(source)
         if not presets:
             WALL.write_bytes(data)
-            print(f"default wallpaper {source.name} webp={len(data)}B base64={len(b64)}B")
+            print(
+                f"default wallpaper {source.name} {mime}={len(data)}B "
+                f"base64={len(b64)}B"
+            )
+        else:
+            print(f"preset {source.name} {mime}={len(data)}B")
         presets.append(
-            {"id": preset_id, "label": label, "value": f'url("data:image/webp;base64,{b64}")'}
+            {"id": preset_id, "label": label, "value": f'url("data:image/{mime};base64,{b64}")'}
         )
     if not presets:
         raise SystemExit("manifest.json lists no presets")
