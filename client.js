@@ -96,8 +96,8 @@ body[data-fresh-skin='on'] [class*='_sidebarCol'] { background: var(--fgw-sideba
 body[data-ds-dark-theme][data-fresh-skin='on'] [class*='_sidebarCol'] { background: var(--fgw-sidebar, rgba(13,24,18,0.80)) !important; }
 /* Windows paints the titlebar strip from the sidebar fill, so the same tint keeps
    the top bar and the sidebar reading as one surface instead of two panels. */
-body[data-fresh-skin='on'] [class*='_frame']::before { background: var(--fgw-sidebar, rgba(250,253,250,0.62)) !important; }
-body[data-ds-dark-theme][data-fresh-skin='on'] [class*='_frame']::before { background: var(--fgw-sidebar, rgba(13,24,18,0.80)) !important; }
+body[data-fresh-skin='on'] [class*='_frame']::before { background: var(--fgw-topbar, var(--fgw-sidebar, rgba(250,253,250,0.62))) !important; }
+body[data-ds-dark-theme][data-fresh-skin='on'] [class*='_frame']::before { background: var(--fgw-topbar, var(--fgw-sidebar, rgba(13,24,18,0.80))) !important; }
 /* Brand marks: the home pixel whale is a canvas painted from its computed
    colour, the sidebar lockup is inline SVG — both follow the theme variables. */
 body[data-fresh-skin='on'] canvas[data-home-whale] {
@@ -412,6 +412,8 @@ function defaults() {
     autoVeil: false,
     palette: 'theme',
     brandTint: false,
+    topbarClear: false,
+    neutralAccent: false,
     colors: { brand: '', sidebar: '', bubble: '', text: '', whale: '', wordmark: '' },
     alpha: { sidebar: 62, bubble: 88 },
     chips: { enabled: true, items: [] },
@@ -487,6 +489,12 @@ function buildTokens(next) {
     tokens['--dsw-alias-bg-layer-2'] = { light: 'rgba(255,255,255,0.78)', dark: 'rgba(22,30,25,0.80)' }
     tokens['--dsw-alias-bg-layer-3'] = { light: 'rgba(255,255,255,0.90)', dark: 'rgba(28,38,32,0.90)' }
     tokens['--dsw-alias-label-primary'] = { light: contrastText(false), dark: '#eef7f1' }
+    if (next.neutralAccent) {
+      // Some people want the host look end to end: drop the green accent too.
+      const slate = '#4c5f56'
+      tokens['--dsw-alias-brand-primary'] = { light: slate, dark: '#a9c3b6' }
+      tokens['--dsw-alias-state-business-primary'] = { light: slate, dark: '#a9c3b6' }
+    }
   }
 
   if (sample) {
@@ -539,6 +547,9 @@ function applyState(next) {
   const sidebar = colors.sidebar
   if (sidebar) root.style.setProperty('--fgw-sidebar', withAlpha(sidebar, alpha.sidebar))
   else root.style.removeProperty('--fgw-sidebar')
+  // "透明顶栏": let the wallpaper run to the very top, keeping the sidebar frosted.
+  if (next.topbarClear) root.style.setProperty('--fgw-topbar', 'transparent')
+  else root.style.removeProperty('--fgw-topbar')
 
   if (colors.whale) root.style.setProperty('--fgw-whale', colors.whale)
   else root.style.removeProperty('--fgw-whale')
@@ -1039,6 +1050,18 @@ window.__ModuleLoader__.load({
                 label,
               ),
             ),
+            current.palette === 'system'
+              ? h(
+                  'label',
+                  { className: 'fgw-toggle', title: '把绿色强调色也换成中性灰，整套更接近宿主原样' },
+                  h('input', {
+                    type: 'checkbox',
+                    checked: Boolean(current.neutralAccent),
+                    onChange: (event) => setState({ ...current, neutralAccent: event.target.checked }),
+                  }),
+                  '中性强调色',
+                )
+              : null,
           ),
           h(
             'div',
@@ -1106,6 +1129,16 @@ window.__ModuleLoader__.load({
             h('span', { className: 'fgw-value' }, `${Number((current.alpha || {}).bubble ?? 88)}%`),
           ),
           h('span', { className: 'fgw-hint' }, '越低越能看见壁纸'),
+          h(
+            'label',
+            { className: 'fgw-toggle', title: '顶栏不铺磨砂，让照片一直铺到最上面' },
+            h('input', {
+              type: 'checkbox',
+              checked: Boolean(current.topbarClear),
+              onChange: (event) => setState({ ...current, topbarClear: event.target.checked }),
+            }),
+            '顶栏透明',
+          ),
         ),
         h(
           'div',

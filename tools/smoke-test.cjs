@@ -87,6 +87,7 @@ store.set(
     veil: 0.3,
     palette: 'custom',
     brandTint: true,
+    topbarClear: true,
     colors: { brand: '', sidebar: '#2e8b57', bubble: '#2e8b57', text: '', whale: '#123456', wordmark: '#654321' },
     alpha: { sidebar: 40, bubble: 55 },
     chips: {
@@ -309,6 +310,7 @@ if (tree) {
 check(String(cssVars.get('--fgw-sidebar') || '').startsWith('rgba(46,139,87'), 'sidebar colour is translucent')
 check(cssVars.get('--fgw-whale') === '#123456', 'whale colour variable is set')
 check(cssVars.get('--fgw-brandtext') === '#654321', 'brand text colour variable is set')
+check(cssVars.get('--fgw-topbar') === 'transparent', 'topbar can be made clear')
 const bubbleToken = tokenCalls[0] && tokenCalls[0].tokens['--dsw-alias-bg-layer-2']
 check(
   Boolean(bubbleToken) && /^rgba\(46,139,87,0\.55\)$/.test(bubbleToken.light),
