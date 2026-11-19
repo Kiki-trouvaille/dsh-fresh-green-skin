@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Fresh green skin">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F4FDF7"/>
+      <stop offset="1" stop-color="#BFE9CE"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#3E9E6A"/>
+      <stop offset="1" stop-color="#74C894"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <path d="M102 26C64 27 34 48 30 80c-1 8 1 15 4 21 19-29 43-43 61-49-16 12-34 26-47 55 29 6 55-14 57-49 0-7-2-11-3-12z" fill="url(#leaf)"/>
+  <path d="M35 103c9-22 24-37 41-47" fill="none" stroke="#2F8B57" stroke-opacity="0.5" stroke-width="3" stroke-linecap="round"/>
+</svg>
