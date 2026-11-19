@@ -94,9 +94,54 @@ body[data-ds-dark-theme] .fgw-video-veil { background: rgba(6,12,9,var(--fgw-vei
    own frosted panel so navigation text stays readable. */
 body[data-fresh-skin='on'] [class*='_sidebarCol'] { background: var(--fgw-sidebar, rgba(250,253,250,0.62)) !important; }
 body[data-ds-dark-theme][data-fresh-skin='on'] [class*='_sidebarCol'] { background: var(--fgw-sidebar, rgba(13,24,18,0.80)) !important; }
+/* Brand marks: the home pixel whale is a canvas painted from its computed
+   colour, the sidebar lockup is inline SVG — both follow the theme variables. */
+body[data-fresh-skin='on'] canvas[data-home-whale] {
+  filter: none !important;
+  color: var(--fgw-whale, var(--dsw-alias-label-secondary)) !important;
+}
+body[data-fresh-skin='on'] [class*='_fish'] svg,
+body[data-fresh-skin='on'] [class*='_fish'] path {
+  fill: var(--fgw-whale, currentColor) !important;
+}
+body[data-fresh-skin='on'] [class*='_brandMark'] svg,
+body[data-fresh-skin='on'] [class*='_brandMark'] path,
+body[data-fresh-skin='on'] [class*='_brandName'],
+body[data-fresh-skin='on'] [class*='_brandIdentity'],
+body[data-fresh-skin='on'] [class*='_titleGroup'] {
+  color: var(--fgw-brandtext, inherit) !important;
+}
+body[data-fresh-skin='on'] [class*='_brandMark'] svg path,
+body[data-fresh-skin='on'] [class*='_brandIdentity'] svg path {
+  fill: currentColor !important;
+}
+/* Quick-launch chips docked right above the composer. */
+.fgw-dock {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 8px 4px 6px; font-size: 12px; color: var(--dsw-alias-label-secondary);
+}
+.fgw-dock-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px;
+  border-radius: 999px; cursor: pointer; font: inherit; font-size: 12px; line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+  border: 1px solid var(--dsw-alias-border-l2);
+  backdrop-filter: blur(6px);
+}
+.fgw-dock-chip:hover { border-color: var(--dsw-alias-brand-primary); }
+.fgw-dock-mark {
+  width: 20px; height: 20px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 11px; font-weight: 600; line-height: 1;
+}
+.fgw-picker { position: fixed; inset: 0; z-index: 9999; background: rgba(8,16,12,.72); display: flex; align-items: center; justify-content: center; cursor: crosshair; }
+.fgw-picker img { max-width: 88vw; max-height: 88vh; display: block; box-shadow: 0 20px 60px rgba(0,0,0,.5); border-radius: 12px; }
 .fgw-row { padding: 16px 0; border-bottom: .5px solid var(--dsw-alias-border-l2); color: var(--dsw-alias-label-primary); }
 .fgw-line { display: flex; align-items: center; gap: 16px; }
 .fgw-line + .fgw-line { margin-top: 10px; }
+.fgw-stack { flex-direction: column; align-items: stretch; gap: 8px; }
+.fgw-chiprow { display: flex; align-items: center; gap: 8px; }
+.fgw-chiprow .fgw-label { width: auto; }
 .fgw-label { width: 48px; flex: none; font-size: 13px; }
 .fgw-gallery { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .fgw-chip {
@@ -171,6 +216,59 @@ function rgbToHsl(r, g, b) {
   else if (max === g) h = 60 * ((b - r) / delta + 2)
   else h = 60 * ((r - g) / delta + 4)
   return { h: (h + 360) % 360, s, l }
+}
+
+/** '#2e8b57' + 0.62 -> 'rgba(46,139,87,0.62)'; leaves non-hex input untouched. */
+function withAlpha(color, alpha) {
+  const value = String(color || '').trim()
+  const ratio = clamp(Number(alpha) / 100, 0, 1)
+  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)
+  if (!hex) return value
+  let digits = hex[1]
+  if (digits.length === 3) digits = digits.split('').map((ch) => ch + ch).join('')
+  const r = parseInt(digits.slice(0, 2), 16)
+  const g = parseInt(digits.slice(2, 4), 16)
+  const b = parseInt(digits.slice(4, 6), 16)
+  return `rgba(${r},${g},${b},${ratio})`
+}
+
+/** Palette for the quick-launch chips: derived from the wallpaper when possible. */
+function chipColor(item, index) {
+  if (item && item.color) return item.color
+  const sample = runtime.derived
+  if (sample) {
+    const hue = (sample.sample ? sample.sample.h : 145) + index * 47
+    return hslToRgb(((hue % 360) + 360) % 360, 0.52, 0.42)
+  }
+  return hslToRgb((145 + index * 47) % 360, 0.52, 0.42)
+}
+
+/** Insert text into the composer (the host exposes a textarea). */
+function insertIntoComposer(text) {
+  const target =
+    document.querySelector('[data-composer] textarea') ||
+    document.querySelector('textarea[placeholder]') ||
+    document.querySelector('textarea') ||
+    document.querySelector('[contenteditable="true"]')
+  if (!target) return false
+  try {
+    target.focus()
+    if (typeof target.setRangeText === 'function') {
+      const start = target.selectionStart === null || target.selectionStart === undefined
+        ? target.value.length
+        : target.selectionStart
+      const end = target.selectionEnd === null || target.selectionEnd === undefined ? start : target.selectionEnd
+      target.setRangeText(text, start, end, 'end')
+    } else if (document.execCommand) {
+      document.execCommand('insertText', false, text)
+    } else {
+      return false
+    }
+    target.dispatchEvent(new Event('input', { bubbles: true }))
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** Average colour + brightness of an image URL or a <video>/<img> element. */
@@ -303,7 +401,9 @@ function defaults() {
     veil: DEFAULT_VEIL,
     autoVeil: false,
     palette: 'theme',
-    colors: { brand: '', sidebar: '', bubble: '', text: '' },
+    colors: { brand: '', sidebar: '', bubble: '', text: '', whale: '', wordmark: '' },
+    alpha: { sidebar: 62, bubble: 88 },
+    chips: { enabled: true, items: [] },
     font: '',
   }
 }
@@ -314,7 +414,13 @@ function readState() {
     const raw = localStorage.getItem(STATE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
-      return { ...fallback, ...parsed, colors: { ...fallback.colors, ...(parsed.colors || {}) } }
+      return {
+        ...fallback,
+        ...parsed,
+        colors: { ...fallback.colors, ...(parsed.colors || {}) },
+        alpha: { ...fallback.alpha, ...(parsed.alpha || {}) },
+        chips: { ...fallback.chips, ...(parsed.chips || {}) },
+      }
     }
     // Migrate the flat keys written by 1.3.x.
     const legacy = localStorage.getItem(LEGACY_IMAGE_KEY)
@@ -361,6 +467,7 @@ function buildTokens(next) {
   const tokens = JSON.parse(JSON.stringify(BASE_TOKENS))
   const sample = next.palette === 'image' ? runtime.derived : null
   const colors = next.colors || {}
+  const alpha = next.alpha || {}
 
   if (sample) {
     tokens['--dsw-alias-brand-primary'] = { light: sample.brand, dark: sample.brandDark }
@@ -376,8 +483,12 @@ function buildTokens(next) {
     tokens['--dsw-alias-state-business-primary'] = { light: colors.brand, dark: colors.brand }
   }
   if (colors.bubble) {
-    tokens['--dsw-alias-bg-layer-2'] = { light: colors.bubble, dark: colors.bubble }
-    tokens['--dsw-alias-bg-layer-3'] = { light: colors.bubble, dark: colors.bubble }
+    // Bubbles keep the wallpaper visible: the colour is a tint with its own
+    // opacity, not a solid fill.
+    const translucent = withAlpha(colors.bubble, alpha.bubble)
+    const dark = withAlpha(colors.bubble, clamp(Number(alpha.bubble) + 8, 0, 100))
+    tokens['--dsw-alias-bg-layer-2'] = { light: translucent, dark }
+    tokens['--dsw-alias-bg-layer-3'] = { light: translucent, dark }
   }
   if (colors.text) {
     tokens['--dsw-alias-label-primary'] = { light: colors.text, dark: colors.text }
@@ -403,9 +514,16 @@ function applyState(next) {
   root.style.setProperty('--fgw-image', backgroundCss(next))
   root.style.setProperty('--fgw-font', next.font || 'inherit')
 
-  const sidebar = next.colors && next.colors.sidebar
-  if (sidebar) root.style.setProperty('--fgw-sidebar', sidebar)
+  const colors = next.colors || {}
+  const alpha = next.alpha || {}
+  const sidebar = colors.sidebar
+  if (sidebar) root.style.setProperty('--fgw-sidebar', withAlpha(sidebar, alpha.sidebar))
   else root.style.removeProperty('--fgw-sidebar')
+
+  if (colors.whale) root.style.setProperty('--fgw-whale', colors.whale)
+  else root.style.removeProperty('--fgw-whale')
+  if (colors.wordmark) root.style.setProperty('--fgw-brandtext', colors.wordmark)
+  else root.style.removeProperty('--fgw-brandtext')
 
   const body = document.body
   if (body) {
@@ -587,6 +705,42 @@ function writeThemes(themes) {
   }
 }
 
+// ------------------------------------------------------------- picking ----
+
+/** Click the wallpaper to take its colour. Resolves with '#rrggbb' or null. */
+function pickColorFromWallpaper(next, done) {
+  const url = backgroundCss(next).match(/url\("?([^")]+)"?\)/)
+  if (!url) {
+    done(null)
+    return
+  }
+  const overlay = document.createElement('div')
+  overlay.className = 'fgw-picker'
+  overlay.title = '点一下取这里的颜色'
+  const image = document.createElement('img')
+  image.src = url[1]
+  image.alt = '壁纸'
+  overlay.appendChild(image)
+  overlay.addEventListener('click', (event) => {
+    try {
+      const rect = image.getBoundingClientRect()
+      const x = Math.round(((event.clientX - rect.left) / rect.width) * image.naturalWidth)
+      const y = Math.round(((event.clientY - rect.top) / rect.height) * image.naturalHeight)
+      const canvas = document.createElement('canvas')
+      canvas.width = 1
+      canvas.height = 1
+      const context = canvas.getContext('2d')
+      context.drawImage(image, x, y, 1, 1, 0, 0, 1, 1)
+      const [r, g, b] = context.getImageData(0, 0, 1, 1).data
+      done(`#${[r, g, b].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`)
+    } catch {
+      done(null)
+    }
+    overlay.remove()
+  })
+  document.body.appendChild(overlay)
+}
+
 function installShortcuts() {
   const onKey = (event) => {
     if (!event.ctrlKey || !event.altKey || event.shiftKey) return
@@ -693,6 +847,8 @@ window.__ModuleLoader__.load({
           autoVeil: current.autoVeil,
           palette: current.palette,
           colors: current.colors,
+          alpha: current.alpha,
+          chips: current.chips,
           font: current.font,
         }
         const next = [...themes.filter((item) => item.name !== name), { name, value }]
@@ -718,6 +874,26 @@ window.__ModuleLoader__.load({
       const setColors = (patch) => {
         setState({ ...current, colors: { ...current.colors, ...patch } })
       }
+
+      const setAlpha = (patch) => {
+        setState({ ...current, alpha: { ...(current.alpha || {}), ...patch } })
+      }
+
+      const pickColor = (key) => {
+        pickColorFromWallpaper(current, (color) => {
+          if (color) setColors({ [key]: color })
+          else setNote('这张壁纸没法取色（视频壁纸请用色板）')
+        })
+      }
+
+      const chipsConfig = current.chips || { enabled: true, items: [] }
+      const chipItems = Array.isArray(chipsConfig.items) ? chipsConfig.items : []
+      const setChips = (patch) => setState({ ...current, chips: { ...chipsConfig, ...patch } })
+      const updateChip = (index, patch) =>
+        setChips({ items: chipItems.map((item, position) => (position === index ? { ...item, ...patch } : item)) })
+      const addChip = () =>
+        setChips({ items: [...chipItems, { id: `chip-${Date.now()}`, label: '新插件', text: '', color: '' }] })
+      const removeChip = (index) => setChips({ items: chipItems.filter((_, position) => position !== index) })
 
       const chips = PRESETS.map((preset) =>
         h('button', {
@@ -851,7 +1027,149 @@ window.__ModuleLoader__.load({
                   value: current.colors[key] || '#2e8b57',
                   onChange: (event) => setColors({ [key]: event.target.value }),
                 }),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'fgw-btn',
+                    title: '从壁纸取色',
+                    disabled: !colorEnabled,
+                    onClick: () => pickColor(key),
+                  },
+                  '取色',
+                ),
               ),
+            ),
+          ),
+        ),
+        h(
+          'div',
+          { className: 'fgw-line' },
+          h('span', { className: 'fgw-label' }, '透光'),
+          h(
+            'span',
+            { className: 'fgw-toggle' },
+            '侧栏',
+            h('input', {
+              type: 'range',
+              min: 0,
+              max: 100,
+              value: Number((current.alpha || {}).sidebar ?? 62),
+              onChange: (event) => setAlpha({ sidebar: Number(event.target.value) }),
+            }),
+            h('span', { className: 'fgw-value' }, `${Number((current.alpha || {}).sidebar ?? 62)}%`),
+          ),
+          h(
+            'span',
+            { className: 'fgw-toggle' },
+            '气泡',
+            h('input', {
+              type: 'range',
+              min: 0,
+              max: 100,
+              value: Number((current.alpha || {}).bubble ?? 88),
+              onChange: (event) => setAlpha({ bubble: Number(event.target.value) }),
+            }),
+            h('span', { className: 'fgw-value' }, `${Number((current.alpha || {}).bubble ?? 88)}%`),
+          ),
+          h('span', { className: 'fgw-hint' }, '越低越能看见壁纸'),
+        ),
+        h(
+          'div',
+          { className: 'fgw-line' },
+          h('span', { className: 'fgw-label' }, '品牌'),
+          h(
+            'label',
+            { className: 'fgw-toggle', title: '新会话大鲸鱼' },
+            '鲸鱼',
+            h('input', {
+              type: 'color',
+              className: 'fgw-swatch',
+              value: current.colors.whale || '#2e8b57',
+              onChange: (event) => setColors({ whale: event.target.value }),
+            }),
+          ),
+          h(
+            'label',
+            { className: 'fgw-toggle', title: '侧栏 deepseek HARNESS 字样' },
+            '品牌字',
+            h('input', {
+              type: 'color',
+              className: 'fgw-swatch',
+              value: current.colors.wordmark || '#0f1c14',
+              onChange: (event) => setColors({ wordmark: event.target.value }),
+            }),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'fgw-btn',
+              onClick: () => setColors({ whale: '', wordmark: '' }),
+            },
+            '跟随主题',
+          ),
+        ),
+        h(
+          'div',
+          { className: 'fgw-line fgw-stack' },
+          h(
+            'div',
+            { className: 'fgw-actions' },
+            h('span', { className: 'fgw-label' }, '快捷条'),
+            h(
+              'label',
+              { className: 'fgw-toggle' },
+              h('input', {
+                type: 'checkbox',
+                checked: chipsConfig.enabled !== false,
+                onChange: (event) => setChips({ enabled: event.target.checked }),
+              }),
+              '在输入框上方显示',
+            ),
+            h('button', { className: 'fgw-btn', onClick: addChip }, '添加'),
+            chipItems.length
+              ? null
+              : h('span', { className: 'fgw-hint' }, '添加后会在新会话输入框上方以首字母图标显示，点一下插入文字'),
+          ),
+          chipItems.map((item, index) =>
+            h(
+              'div',
+              { key: item.id || index, className: 'fgw-chiprow' },
+              h('input', {
+                className: 'fgw-input',
+                style: { width: '92px' },
+                value: item.label,
+                placeholder: '名称',
+                onChange: (event) => updateChip(index, { label: event.target.value }),
+              }),
+              h('input', {
+                className: 'fgw-input',
+                style: { flex: '1', minWidth: '120px' },
+                value: item.text || '',
+                placeholder: '点图标时插入的文字',
+                onChange: (event) => updateChip(index, { text: event.target.value }),
+              }),
+              h('input', {
+                type: 'color',
+                className: 'fgw-swatch',
+                value: item.color || chipColor(item, index),
+                onChange: (event) => updateChip(index, { color: event.target.value }),
+              }),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'fgw-btn',
+                  title: '从壁纸取色',
+                  onClick: () =>
+                    pickColorFromWallpaper(current, (color) => {
+                      if (color) updateChip(index, { color })
+                    }),
+                },
+                '取色',
+              ),
+              h('button', { className: 'fgw-btn', title: '删除', onClick: () => removeChip(index) }, '×'),
             ),
           ),
         ),
@@ -914,6 +1232,46 @@ window.__ModuleLoader__.load({
 
     ThemeRow.displayName = 'FreshGreenThemeRow'
 
+    /** Quick-launch chips docked above the composer. */
+    function ChipsDock() {
+      const [current, setCurrent] = useState(getState)
+      useEffect(() => {
+        const listener = (next) => setCurrent({ ...next })
+        listeners.add(listener)
+        return () => listeners.delete(listener)
+      }, [])
+
+      const config = current.chips || {}
+      if (config.enabled === false) return null
+      const items = Array.isArray(config.items) ? config.items.filter((item) => item && item.label) : []
+      if (!items.length) return null
+
+      return h(
+        'div',
+        { className: 'fgw-dock' },
+        items.map((item, index) =>
+          h(
+            'button',
+            {
+              key: item.id || `${item.label}-${index}`,
+              type: 'button',
+              className: 'fgw-dock-chip',
+              title: item.text ? `插入：${item.text}` : item.label,
+              onClick: () => insertIntoComposer(item.text || item.label),
+            },
+            h(
+              'span',
+              { className: 'fgw-dock-mark', style: { background: chipColor(item, index) } },
+              String(item.label).trim().slice(0, 1).toUpperCase(),
+            ),
+            item.label,
+          ),
+        ),
+      )
+    }
+
+    ChipsDock.displayName = 'FreshGreenChipsDock'
+
     return {
       inject: ['theme', 'slots'],
       apply(ctx) {
@@ -926,6 +1284,12 @@ window.__ModuleLoader__.load({
             ctx.slots.register(
               { name: 'settings.general.item', id: 'fresh-green-wallpaper', order: 20 },
               ThemeRow,
+            ),
+          )
+          ctx.slots.inject('conversation.input.dock', () =>
+            ctx.slots.register(
+              { name: 'conversation.input.dock', id: 'fresh-green-chips', order: 5 },
+              ChipsDock,
             ),
           )
         }

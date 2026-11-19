@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Fresh Green Skin",
-    "description": "Fresh green palette with custom wallpapers (image or video), wallpaper-derived colours, adaptive veil, fonts and named themes",
-    "detail": "Settings → General → Wallpaper: pick the bundled 4K photo, upload your own image or video, tune the transparency, derive colours from the wallpaper or pick your own, change the font, and save combinations as named themes switchable with Ctrl+Alt+number."
+    "description": "Fresh white-green theme with custom wallpapers (image/video), wallpaper-derived palettes, translucency, brand colours, quick chips, fonts and named themes",
+    "detail": "Settings → General → Wallpaper: bundled 4K photo, your own image or a looping video, transparency (optionally adaptive), palette from the wallpaper or your own per-area colours, translucent sidebar/bubbles, brand colours, quick-launch chips and a font picker; save combinations as named themes and switch with Ctrl+Alt+digit."
   }
 }

@@ -1,8 +1,8 @@
 {
   "name": "dsh-fresh-green-skin",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "module",
-  "description": "清新白绿的皮肤工作台：4K 壁纸 / 自己的图片 / 视频动态壁纸，壁纸取色或自选配色、透明度自适应、字体与命名主题（DeepSeek Harness 插件）",
+  "description": "清新白绿皮肤：4K/自定义壁纸与动态视频壁纸、壁纸取色、侧栏与气泡透光、品牌色、快捷图标条、字体与命名主题",
   "license": "MIT",
   "repository": {
     "type": "git",

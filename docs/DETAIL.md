@@ -13,15 +13,19 @@
 - **动态壁纸**：视频以 Blob 存进 IndexedDB（库 `fresh-green-skin`，store `media`，键 `video`），播放时插入 `<video class="fgw-video">`（`position: fixed`、`z-index: -2`、静音循环）与 `.fgw-video-veil`（`z-index: -1`）。此时 `body` 背景置透明、`<html>` 上底色 `#08120c`，视频才不会被 body 背景盖住。
 - **自适应蒙版**：勾「跟随壁纸自动」时，`veil = clamp(0.7 − 平均亮度 × 0.55, 0.26, 0.74)`——亮的照片蒙得多、暗的照片蒙得少。
 - **字体**：`--fgw-font` 写到 `body` 的 `font-family`，选项见 `FONTS`（默认 / 黑体 / 宋体 / 楷体 / 衬线英文 / 等宽）；默认值 `inherit` 保持 DSH 原样。
-- **设置项**：注册到 `settings.general.item`（id `fresh-green-wallpaper`，order 20），分五行：
+- **设置项**：注册到 `settings.general.item`（id `fresh-green-wallpaper`，order 20），分七行：
   1. 壁纸：画廊缩略图（内置图 / “我的图片” / “视频”块）+ 上传图片 / 上传视频 / 恢复默认
   2. 透明度：滑块 0–100%（默认 34%）+「跟随壁纸自动」
-  3. 配色：默认绿 / 跟随壁纸 / 自定义 + 主色 / 侧栏 / 气泡 / 文字四个取色器
-  4. 字体：下拉选择
-  5. 主题：名字输入 + 保存主题 + 已存主题按钮（`⌃⌥n` 提示）+ `×` 删除
+  3. 配色：默认绿 / 跟随壁纸 / 自定义 + 主色 / 侧栏 / 气泡 / 文字四个取色器，每个带 **取色**（点壁纸取色）
+  4. 透光：侧栏 / 气泡不透明度（默认 62% / 88%），把用户挑的颜色变成 `rgba(h,alpha)`，不糊住壁纸
+  5. 品牌：鲸鱼 / 品牌字颜色（`--fgw-whale` / `--fgw-brandtext`），「跟随主题」清空
+  6. 快捷条：开关 + 条目列表（名称 / 插入文字 / 颜色 / 取色 / 删除）
+  7. 字体与主题：字体下拉；名字输入 + 保存主题 + 已存主题按钮（`⌃⌥n`）+ `×` 删除
+- **品牌着色**：鲸鱼是宿主的 `<canvas data-home-whale>`，其 `fillStyle` 读自 `getComputedStyle(canvas).color`，所以 CSS 里把它 `filter: none` 并改 `color: var(--fgw-whale)`；侧栏字样走 `[class*='_brandName']` / `[class*='_brandIdentity']` 的 `color` 与 SVG `fill`。都属于“跟随宿主标记”的软着色。
+- **快捷条 dock**：注册到 `conversation.input.dock`（id `fresh-green-chips`，order 5），渲染首字母圆角图标；点击时按 `[data-composer] textarea` → `textarea` → `[contenteditable]` 顺序找输入框，用 `setRangeText` + `input` 事件把文字插进去。
 - **快捷键**：`Ctrl+Alt+1…9` 应用第 n 套已存主题，`Ctrl+Alt+0` 恢复默认（`installShortcuts` 里监听 keydown，忽略带 Shift 的组合）。
 - **持久化**：
-  - `fresh-green-skin:state`：`{ source, veil, autoVeil, palette, colors, font }`；`source` 为 `{kind:'preset',id}` / `{kind:'image',src}` / `{kind:'video',name}`，图片是 data URI。
+  - `fresh-green-skin:state`：`{ source, veil, autoVeil, palette, colors, alpha, chips, font }`；`source` 为 `{kind:'preset',id}` / `{kind:'image',src}` / `{kind:'video',name}`，图片是 data URI；`alpha` 是侧栏/气泡不透明度（0–100），`chips` 是 `{ enabled, items: [{ id, label, text, color }] }`。
   - `fresh-green-skin:themes`：`[{ name, value }]`，`value` 是上一条去掉视频外的一切（视频主题只记名字，播的还是上传的那段视频）。
   - 旧版键（`fresh-green-skin:wallpaper`、`fresh-green-skin:veil`）在首次读取时自动迁移。
   - 视频二进制在 IndexedDB，不占 localStorage 配额。
@@ -57,7 +61,8 @@
 
 ## 没做的部分
 
-- 新会话页大鲸鱼图标、`DeepSeek Harness` 字样、输入框上方插件快捷图标：宿主没开放对应 slot/图标 API，插件无法安全替换，硬改 class 会在升级后失效。等宿主提供插槽再补。
+- 没有替换宿主的品牌组件，只做颜色着色（见上面「品牌着色」）：DSH 换掉 `data-home-whale`、`_brandName` 这些标记时着色会失效，不影响其他功能。
+- 快捷条不做插件自动发现：条目由你在设置里手填（名称 + 插入文字），因为宿主没有把插件图标/命令列表暴露给 client 插件。
 
 ## 备注
 

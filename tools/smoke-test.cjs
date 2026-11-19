@@ -78,6 +78,27 @@ const localStorage = {
   removeItem: (key) => store.delete(key),
 }
 
+// Seed a custom palette with translucent panels plus two quick-launch chips, so
+// the alpha maths, the brand colours and the dock all have something to render.
+store.set(
+  'fresh-green-skin:state',
+  JSON.stringify({
+    source: { kind: 'preset', id: 'meadow' },
+    veil: 0.3,
+    palette: 'custom',
+    colors: { brand: '', sidebar: '#2e8b57', bubble: '#2e8b57', text: '', whale: '#123456', wordmark: '#654321' },
+    alpha: { sidebar: 40, bubble: 55 },
+    chips: {
+      enabled: true,
+      items: [
+        { id: 'c1', label: '浏览器', text: '/browser ', color: '#2e8b57' },
+        { id: 'c2', label: '文档', text: '/doc ' },
+      ],
+    },
+    font: '',
+  }),
+)
+
 // --- minimal react --------------------------------------------------------
 const hookState = []
 let hookIndex = 0
@@ -252,10 +273,11 @@ if (tree) {
   check(rendered.includes('字体'), 'row renders the font picker')
   check(!rendered.includes('选一张自己的图片做背景'), 'row drops the old description sentence')
 
-  const chips = nodes(tree).filter(
-    (node) => typeof node.props.className === 'string' && node.props.className.includes('fgw-chip'),
-  )
-  const photoChips = chips.filter((chip) => !chip.props.className.includes('video'))
+  const chips = nodes(tree).filter((node) => {
+    const className = node.props && node.props.className
+    return typeof className === 'string' && className.split(/\s+/).includes('fgw-chip')
+  })
+  const photoChips = chips.filter((chip) => !String(chip.props.className).split(/\s+/).includes('video'))
   check(photoChips.length >= 1, `row renders the preset gallery (${photoChips.length} photo chips)`)
   check(chips.length > photoChips.length, 'row renders a video chip')
   check(chips.filter((chip) => chip.props.className.includes('active')).length === 1, 'exactly one chip is active')
@@ -267,6 +289,68 @@ if (tree) {
     photoChips.some((chip) => String(chip.props.style.backgroundImage).includes('data:image/')),
     'the default preset is an inlined photo',
   )
+  check(rendered.includes('透光'), 'row renders the panel-translucency label')
+  check(rendered.includes('品牌'), 'row renders the brand-colour line')
+  check(rendered.includes('快捷条'), 'row renders the quick-launch line')
+  check(rendered.includes('在输入框上方显示'), 'row renders the quick-launch toggle')
+  check(rendered.includes('取色'), 'row renders eyedropper buttons')
+  check(
+    nodes(tree).some((node) => node.props.type === 'color' && node.props.value === '#123456'),
+    'brand whale colour is rendered from state',
+  )
+  check(
+    nodes(tree).some((node) => node.props.placeholder === '点图标时插入的文字'),
+    'quick-launch editors are rendered',
+  )
+}
+
+// --- translucency + brand tokens -----------------------------------------
+check(String(cssVars.get('--fgw-sidebar') || '').startsWith('rgba(46,139,87'), 'sidebar colour is translucent')
+check(cssVars.get('--fgw-whale') === '#123456', 'whale colour variable is set')
+check(cssVars.get('--fgw-brandtext') === '#654321', 'brand text colour variable is set')
+const bubbleToken = tokenCalls[0] && tokenCalls[0].tokens['--dsw-alias-bg-layer-2']
+check(
+  Boolean(bubbleToken) && /^rgba\(46,139,87,0\.55\)$/.test(bubbleToken.light),
+  'bubble colour honours its own opacity',
+)
+check(
+  Boolean(tokenCalls[0]) && String(tokenCalls[0].tokens['--dsw-alias-bg-layer-2'].light) !== bubbleToken.light.replace('0.55', '1'),
+  'bubbles are never fully opaque by default',
+)
+const CSS_TEXT = styleNodes.map((node) => node.textContent || '').join('\n')
+check(CSS_TEXT.includes('canvas[data-home-whale]'), 'whale canvas is tinted by CSS')
+check(CSS_TEXT.includes('_sidebarCol'), 'sidebar keeps a stable class hook')
+
+// --- quick-launch dock ----------------------------------------------------
+const dock = registered.find((item) => item.definition && item.definition.id === 'fresh-green-chips')
+check(Boolean(dock), 'registers the quick-launch dock')
+check(dock && dock.definition.name === 'conversation.input.dock', 'dock is registered on conversation.input.dock')
+check(dock && dock.definition.order === 5, 'dock order is 5')
+check(Boolean(dock && typeof dock.component === 'function'), 'dock component is a function')
+
+if (dock && typeof dock.component === 'function') {
+  let dockTree = null
+  try {
+    hookIndex = 0
+    dockTree = dock.component({})
+  } catch (error) {
+    failures.push(`dock render threw: ${error.message}`)
+    console.log(`FAIL dock render threw: ${error.message}`)
+  }
+  if (dockTree) {
+    const buttons = nodes(dockTree).filter((node) => node.type === 'button')
+    check(buttons.length === 2, `dock renders one chip per item (${buttons.length})`)
+    check(
+      nodes(dockTree).some((node) => node.props.className === 'fgw-dock-mark'),
+      'chips show a first-letter mark',
+    )
+    check(
+      nodes(dockTree).some(
+        (node) => node.props.className === 'fgw-dock-mark' && String(node.props.style.background).startsWith('#'),
+      ),
+      'chip marks are coloured',
+    )
+  }
 }
 
 if (failures.length) {
