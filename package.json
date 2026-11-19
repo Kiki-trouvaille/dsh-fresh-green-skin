@@ -1,8 +1,8 @@
 {
   "name": "dsh-fresh-green-skin",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "type": "module",
-  "description": "清新白绿皮肤：4K/自定义壁纸与动态视频壁纸、壁纸取色、侧栏与气泡透光、品牌色、快捷图标条、字体与命名主题",
+  "description": "清新白绿皮肤：4K/自定义壁纸与视频壁纸、一键预设、纸面锚点配色、透光分区、品牌色与自定义图标、快捷条、字体、命名主题与导入导出",
   "license": "MIT",
   "repository": {
     "type": "git",

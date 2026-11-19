@@ -143,6 +143,7 @@ body[data-fgw-brand-tint='on'] [class*='_titleGroup'] {
 .fgw-chiprow { display: flex; align-items: center; gap: 8px; }
 .fgw-chiprow .fgw-label { width: auto; }
 .fgw-label { width: 48px; flex: none; font-size: 13px; }
+.fgw-label.auto { width: auto; white-space: nowrap; }
 .fgw-gallery { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .fgw-chip {
   width: 64px; height: 40px; padding: 0; flex: none; cursor: pointer; position: relative; overflow: hidden;
@@ -181,6 +182,21 @@ body[data-fgw-brand-tint='on'] [class*='_titleGroup'] {
 .fgw-input { width: 132px; }
 .fgw-note { font-size: 12px; color: var(--dsw-alias-brand-primary); margin-top: 8px; }
 .fgw-hint { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+.fgw-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.fgw-preset {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; cursor: pointer;
+  font: inherit; text-align: left; padding: 7px 12px; border-radius: 10px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-3); border: 1px solid var(--dsw-alias-border-l2);
+}
+.fgw-preset small { font-size: 11px; color: var(--dsw-alias-label-tertiary); }
+.fgw-preset.active { border-color: var(--dsw-alias-brand-primary); box-shadow: 0 0 0 2px rgba(46,139,87,.18); }
+.fgw-preset-dot { width: 34px; height: 6px; border-radius: 3px; margin-bottom: 2px; }
+.fgw-brand-icon { display: block; width: 100%; height: 100%; object-fit: contain; }
+.fgw-thumb-logo { object-fit: contain; border-radius: 6px; }
+/* A custom logo replaces the whale the host draws on its canvas. */
+body[data-fgw-logo='on'] canvas[data-home-whale],
+body[data-fgw-hide-whale='on'] canvas[data-home-whale] { display: none !important; }
 `
 
 // ---------------------------------------------------------------- helpers ---
@@ -223,14 +239,32 @@ function rgbToHsl(r, g, b) {
 function withAlpha(color, alpha) {
   const value = String(color || '').trim()
   const ratio = clamp(Number(alpha) / 100, 0, 1)
-  const hex = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)
-  if (!hex) return value
+  const rgb = hexToRgb(value)
+  if (!rgb) return value
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},${ratio})`
+}
+
+/** '#2e8b57' -> { r: 46, g: 139, b: 87 }, or null when it is not a hex colour. */
+function hexToRgb(color) {
+  const hex = String(color || '').trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)
+  if (!hex) return null
   let digits = hex[1]
   if (digits.length === 3) digits = digits.split('').map((ch) => ch + ch).join('')
-  const r = parseInt(digits.slice(0, 2), 16)
-  const g = parseInt(digits.slice(2, 4), 16)
-  const b = parseInt(digits.slice(4, 6), 16)
-  return `rgba(${r},${g},${b},${ratio})`
+  return {
+    r: parseInt(digits.slice(0, 2), 16),
+    g: parseInt(digits.slice(2, 4), 16),
+    b: parseInt(digits.slice(4, 6), 16),
+  }
+}
+
+/** Blend two hex colours: t=0 keeps a, t=1 keeps b. Falls back to a when unparsable. */
+function mixHex(a, b, t) {
+  const one = hexToRgb(a)
+  const two = hexToRgb(b)
+  if (!one || !two) return a
+  const ratio = clamp(Number(t), 0, 1)
+  const channel = (x, y) => Math.round(x + (y - x) * ratio).toString(16).padStart(2, '0')
+  return `#${channel(one.r, two.r)}${channel(one.g, two.g)}${channel(one.b, two.b)}`
 }
 
 /** Pick readable text for the current wallpaper: dark on a light photo, light on
@@ -400,7 +434,8 @@ async function clearVideo() {
 // ----------------------------------------------------------------- state ---
 
 const listeners = new Set()
-const runtime = { video: null, videoUrl: null, veilCss: null, tokens: null }
+const runtime = { video: null, videoUrl: null, veilCss: null, tokens: null, logoComponent: null }
+const logoHandles = []
 let state = null
 let hostCtx = null
 let disposeTokens = null
@@ -414,12 +449,47 @@ function defaults() {
     brandTint: false,
     topbarClear: false,
     neutralAccent: false,
+    paper: '',
+    logo: '',
+    hideWhale: false,
     colors: { brand: '', sidebar: '', bubble: '', text: '', whale: '', wordmark: '' },
     alpha: { sidebar: 62, bubble: 88 },
     chips: { enabled: true, items: [] },
     font: '',
   }
 }
+
+/** One-click looks. Each entry only sets the fields it cares about. */
+const QUICK_PRESETS = [
+  {
+    id: 'fresh',
+    label: '清爽白绿',
+    hint: '照片 + 白纸 + 绿点缀',
+    dot: 'linear-gradient(90deg,#fdfefd,#2e8b57)',
+    value: { palette: 'theme', veil: 0.34, alpha: { sidebar: 62, bubble: 88 }, paper: '', topbarClear: false, colors: { brand: '', sidebar: '', bubble: '', text: '' } },
+  },
+  {
+    id: 'photo',
+    label: '全壁纸',
+    hint: '几乎不遮，颜色跟着照片走',
+    dot: 'linear-gradient(90deg,#9ec9b4,#2e8b57)',
+    value: { palette: 'image', veil: 0.1, alpha: { sidebar: 26, bubble: 46 }, paper: '', topbarClear: true },
+  },
+  {
+    id: 'system',
+    label: '跟随系统',
+    hint: '中性和纸，字色自动保证对比',
+    dot: 'linear-gradient(90deg,#f4f4f2,#b7bcb9)',
+    value: { palette: 'system', veil: 0.34, alpha: { sidebar: 62, bubble: 88 }, paper: '', neutralAccent: true },
+  },
+  {
+    id: 'plain',
+    label: '纯纸面',
+    hint: '收掉壁纸，只留配色',
+    dot: 'linear-gradient(90deg,#ffffff,#eef3ef)',
+    value: { palette: 'custom', veil: 1, alpha: { sidebar: 100, bubble: 100 }, colors: { brand: '', sidebar: '#f7faf8', bubble: '#ffffff', text: '' }, paper: '' },
+  },
+]
 
 function readState() {
   const fallback = defaults()
@@ -506,6 +576,26 @@ function buildTokens(next) {
     tokens['--dsw-alias-bg-layer-3'] = { light: sample.bubble, dark: 'rgba(30,46,37,0.93)' }
   }
 
+  if (next.paper) {
+    // One anchor colour ("纸面") drives the whole surface stack: panels, borders
+    // and the two secondary label tiers are all derived from it, so a custom
+    // palette needs one decision instead of eight.
+    const paper = String(next.paper)
+    const accent = colors.brand || (sample ? sample.brand : '#2e8b57')
+    const text = colors.text || (sample ? sample.text : '#0f1c14')
+    const darkPaper = mixHex(paper, '#0a110c', 0.82)
+    const darkText = '#eaf5ee'
+    tokens['--dsw-alias-bg-layer-1'] = { light: withAlpha(paper, alpha.sidebar), dark: withAlpha(darkPaper, alpha.sidebar) }
+    tokens['--dsw-alias-bg-layer-2'] = { light: withAlpha(paper, alpha.bubble), dark: withAlpha(darkPaper, alpha.bubble) }
+    tokens['--dsw-alias-bg-layer-3'] = { light: withAlpha(paper, Math.min(100, Number(alpha.bubble) + 10)), dark: withAlpha(darkPaper, 96) }
+    tokens['--dsw-alias-border-l1'] = { light: withAlpha(accent, 16), dark: 'rgba(126,215,166,0.18)' }
+    tokens['--dsw-alias-border-l2'] = { light: withAlpha(accent, 22), dark: 'rgba(126,215,166,0.24)' }
+    tokens['--dsw-alias-border-l3'] = { light: withAlpha(accent, 30), dark: 'rgba(126,215,166,0.32)' }
+    tokens['--dsw-alias-label-secondary'] = { light: mixHex(text, paper, 0.45), dark: '#c2d8c9' }
+    tokens['--dsw-alias-label-tertiary'] = { light: mixHex(text, paper, 0.66), dark: '#93ab9c' }
+    tokens['--dsw-alias-label-primary'] = { light: text, dark: darkText }
+  }
+
   if (colors.brand) {
     tokens['--dsw-alias-brand-primary'] = { light: colors.brand, dark: colors.brand }
     tokens['--dsw-alias-state-business-primary'] = { light: colors.brand, dark: colors.brand }
@@ -544,7 +634,9 @@ function applyState(next) {
 
   const colors = next.colors || {}
   const alpha = next.alpha || {}
-  const sidebar = colors.sidebar
+  // The paper anchor doubles as the sidebar tint, so one colour choice keeps the
+  // frame, the sidebar strip and the panels in the same family.
+  const sidebar = colors.sidebar || next.paper
   if (sidebar) root.style.setProperty('--fgw-sidebar', withAlpha(sidebar, alpha.sidebar))
   else root.style.removeProperty('--fgw-sidebar')
   // "透明顶栏": let the wallpaper run to the very top, keeping the sidebar frosted.
@@ -561,16 +653,50 @@ function applyState(next) {
     body.dataset.freshSkin = 'on'
     if (next.brandTint && colors.wordmark) body.dataset.fgwBrandTint = 'on'
     else delete body.dataset.fgwBrandTint
+    if (next.logo) body.dataset.fgwLogo = 'on'
+    else delete body.dataset.fgwLogo
+    if (next.hideWhale) body.dataset.fgwHideWhale = 'on'
+    else delete body.dataset.fgwHideWhale
     if (next.source.kind === 'video') body.dataset.fgwVideo = 'on'
     else delete body.dataset.fgwVideo
   }
 
   applyTokens(next)
   syncVideo(next)
+  syncLogo(next)
 }
 
-function syncVideo(next) {
-  const wantsVideo = next.source.kind === 'video' && runtime.videoUrl
+/** Swap the host's brand marks for the user's own logo, but only while one is set:
+    registering on demand keeps the shipped whale for everybody who never uploads. */
+function syncLogo(next) {
+  const hasLogo = Boolean(next && next.logo)
+  if (!hasLogo) {
+    while (logoHandles.length) {
+      const dispose = logoHandles.pop()
+      try {
+        dispose()
+      } catch {
+        /* already gone */
+      }
+    }
+    return
+  }
+  if (logoHandles.length || !hostCtx || !hostCtx.slots || typeof hostCtx.slots.inject !== 'function') return
+  const component = runtime.logoComponent
+  if (!component) return
+  for (const name of ['sidebar.brand.mark', 'conversation.hero.brand.mark']) {
+    try {
+      const handle = hostCtx.slots.inject(name, () =>
+        hostCtx.slots.register({ name, id: 'fresh-green-logo' }, component),
+      )
+      if (handle) logoHandles.push(handle)
+    } catch {
+      /* slot missing on this build: the logo simply does not replace anything */
+    }
+  }
+}
+
+function syncVideo(next) {  const wantsVideo = next.source.kind === 'video' && runtime.videoUrl
   const root = document.documentElement
   let video = runtime.video
   if (!wantsVideo) {
@@ -605,15 +731,17 @@ function syncVideo(next) {
 
 function persist(next) {
   try {
+    // Everything except the video blob (which lives in IndexedDB) and the image
+    // bytes of an uploaded photo, which stay in `source.src`.
     const copy = {
-      source: next.source.kind === 'video' ? { kind: 'video', name: next.source.name || 'video' } : next.source,
-      veil: next.veil,
-      autoVeil: next.autoVeil,
-      palette: next.palette,
-      colors: next.colors,
-      font: next.font,
+      ...next,
+      colors: { ...(next.colors || {}) },
+      alpha: { ...(next.alpha || {}) },
+      chips: { ...(next.chips || {}) },
     }
-    if (copy.source.kind === 'image' && copy.source.src && copy.source.src.length > 4 * 1024 * 1024) {
+    delete copy.hostCtx
+    if (copy.source && copy.source.kind === 'video') copy.source = { kind: 'video', name: copy.source.name || 'video' }
+    if (copy.source && copy.source.kind === 'image' && copy.source.src && copy.source.src.length > 4 * 1024 * 1024) {
       throw new Error('图片太大，无法保存')
     }
     localStorage.setItem(STATE_KEY, JSON.stringify(copy))
@@ -648,6 +776,28 @@ function readImageFile(file, done) {
       if (!context) return done(new Error('浏览器不支持 canvas'))
       context.drawImage(image, 0, 0, canvas.width, canvas.height)
       done(null, canvas.toDataURL('image/jpeg', 0.9))
+    }
+    image.src = String(reader.result)
+  }
+  reader.readAsDataURL(file)
+}
+
+/** Brand logo: small, square-ish PNG so it stays crisp on the 24/34 px marks. */
+function readLogoFile(file, done) {
+  const reader = new FileReader()
+  reader.onerror = () => done(new Error('读取文件失败'))
+  reader.onload = () => {
+    const image = new Image()
+    image.onerror = () => done(new Error('这张图片无法解析'))
+    image.onload = () => {
+      const scale = Math.min(1, 96 / Math.max(image.naturalWidth, image.naturalHeight))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+      const context = canvas.getContext('2d')
+      if (!context) return done(new Error('浏览器不支持 canvas'))
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      done(null, canvas.toDataURL('image/png'))
     }
     image.src = String(reader.result)
   }
@@ -738,6 +888,44 @@ function writeThemes(themes) {
   }
 }
 
+// ------------------------------------------------------------- sharing ----
+
+/** One file the user can hand to somebody else: current look plus saved themes. */
+function exportThemeFile() {
+  const payload = {
+    app: SOURCE,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    state: { ...getState() },
+    themes: readThemes(),
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'fresh-green-theme.json'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 4000)
+}
+
+/** Accepts both our own export and a bare { value } snapshot. */
+function readThemeFile(file, done) {
+  const reader = new FileReader()
+  reader.onerror = () => done(new Error('读取文件失败'))
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(String(reader.result))
+      if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('不是主题文件')
+      done(null, data)
+    } catch (error) {
+      done(error instanceof Error ? error : new Error(String(error)))
+    }
+  }
+  reader.readAsText(file)
+}
+
 // ------------------------------------------------------------- picking ----
 
 /** Click the wallpaper to take its colour. Resolves with '#rrggbb' or null. */
@@ -806,6 +994,8 @@ window.__ModuleLoader__.load({
       const [draftName, setDraftName] = useState('')
       const imageRef = useRef(null)
       const videoRef = useRef(null)
+      const logoRef = useRef(null)
+      const themeFileRef = useRef(null)
 
       useEffect(() => {
         const listener = (next, failure) => {
@@ -866,6 +1056,79 @@ window.__ModuleLoader__.load({
       const reset = () => {
         const failure = setState(defaults())
         setNote(failure ? `恢复失败：${failure}` : '已恢复默认主题')
+      }
+
+      /** One click sets a whole look, so nobody has to tune eight knobs first. */
+      const applyQuickPreset = (preset) => {
+        const value = preset.value || {}
+        const next = {
+          ...current,
+          palette: value.palette || current.palette,
+          veil: value.veil === undefined ? current.veil : value.veil,
+          autoVeil: false,
+          paper: value.paper === undefined ? current.paper : value.paper,
+          topbarClear: value.topbarClear === undefined ? current.topbarClear : value.topbarClear,
+          neutralAccent: value.neutralAccent === undefined ? current.neutralAccent : value.neutralAccent,
+          alpha: { ...(current.alpha || {}), ...(value.alpha || {}) },
+          colors: { ...(current.colors || {}), ...(value.colors || {}) },
+        }
+        setState(next)
+        sampleSource(next)
+        setNote(`已应用「${preset.label}」`)
+      }
+
+      const pickLogo = () => logoRef.current && logoRef.current.click()
+
+      const onLogo = (event) => {
+        const file = event.target.files && event.target.files[0]
+        event.target.value = ''
+        if (!file) return
+        readLogoFile(file, (error, value) => {
+          if (error || !value) {
+            setNote(`图标读取失败：${error ? error.message : '未知错误'}`)
+            return
+          }
+          const failure = setState({ ...current, logo: value })
+          setNote(failure ? `图标保存失败：${failure}` : '已换成你的图标（侧栏与新会话）')
+        })
+      }
+
+      const exportJson = () => {
+        try {
+          exportThemeFile()
+          setNote('已导出 fresh-green-theme.json')
+        } catch (error) {
+          setNote(`导出失败：${error instanceof Error ? error.message : error}`)
+        }
+      }
+
+      const importJson = () => themeFileRef.current && themeFileRef.current.click()
+
+      const onThemeFile = (event) => {
+        const file = event.target.files && event.target.files[0]
+        event.target.value = ''
+        if (!file) return
+        readThemeFile(file, (error, data) => {
+          if (error || !data) {
+            setNote(`导入失败：${error ? error.message : '文件读不出来'}`)
+            return
+          }
+          const incoming = data.state || data.value || (data.palette || data.source ? data : null)
+          const merged = Array.isArray(data.themes) ? data.themes.filter((item) => item && item.name) : []
+          if (merged.length) {
+            const next = [...readThemes().filter((item) => !merged.some((extra) => extra.name === item.name)), ...merged]
+            writeThemes(next)
+            setThemes(next)
+          }
+          if (!incoming) {
+            setNote(merged.length ? `已导入 ${merged.length} 套主题` : '这个文件里没有可用的配色')
+            return
+          }
+          const next = { ...defaults(), ...incoming }
+          setState(next)
+          sampleSource(next)
+          setNote(`已导入配色${merged.length ? `和 ${merged.length} 套主题` : ''}`)
+        })
       }
 
       const saveTheme = () => {
@@ -989,6 +1252,35 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
+          { className: 'fgw-line fgw-stack' },
+          h(
+            'div',
+            { className: 'fgw-actions' },
+            h('span', { className: 'fgw-label auto' }, '一键预设'),
+            h('span', { className: 'fgw-hint' }, '先挑一个整体观感，再往下微调'),
+          ),
+          h(
+            'div',
+            { className: 'fgw-presets' },
+            QUICK_PRESETS.map((preset) =>
+              h(
+                'button',
+                {
+                  key: preset.id,
+                  type: 'button',
+                  className: 'fgw-preset',
+                  title: preset.hint,
+                  onClick: () => applyQuickPreset(preset),
+                },
+                h('span', { className: 'fgw-preset-dot', style: { background: preset.dot } }),
+                preset.label,
+                h('small', null, preset.hint),
+              ),
+            ),
+          ),
+        ),
+        h(
+          'div',
           { className: 'fgw-line' },
           h('span', { className: 'fgw-label' }, '透明度'),
           h(
@@ -1068,11 +1360,18 @@ window.__ModuleLoader__.load({
             { className: 'fgw-actions fgw-inline' },
             ...[
               ['brand', '主色'],
+              ['paper', '纸面'],
               ['sidebar', '侧栏'],
               ['bubble', '气泡'],
               ['text', '文字'],
-            ].map(([key, label]) =>
-              h(
+            ].map(([key, label]) => {
+              const value = key === 'paper' ? current.paper : current.colors[key]
+              const fallback = key === 'paper' ? '#f2f7f3' : '#2e8b57'
+              const commit = (color) => {
+                if (key === 'paper') setState({ ...current, paper: color })
+                else setColors({ [key]: color })
+              }
+              return h(
                 'label',
                 { key, className: 'fgw-toggle', title: label },
                 label,
@@ -1080,8 +1379,8 @@ window.__ModuleLoader__.load({
                   type: 'color',
                   className: 'fgw-swatch',
                   disabled: !colorEnabled,
-                  value: current.colors[key] || '#2e8b57',
-                  onChange: (event) => setColors({ [key]: event.target.value }),
+                  value: value || fallback,
+                  onChange: (event) => commit(event.target.value),
                 }),
                 h(
                   'button',
@@ -1090,12 +1389,15 @@ window.__ModuleLoader__.load({
                     className: 'fgw-btn',
                     title: '从壁纸取色',
                     disabled: !colorEnabled,
-                    onClick: () => pickColor(key),
+                    onClick: () =>
+                      pickColorFromWallpaper(current, (color) => {
+                        if (color) commit(color)
+                      }),
                   },
                   '取色',
                 ),
-              ),
-            ),
+              )
+            }),
           ),
         ),
         h(
@@ -1188,6 +1490,32 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
+          { className: 'fgw-line' },
+          h('span', { className: 'fgw-label' }, '图标'),
+          h(
+            'label',
+            { className: 'fgw-toggle', title: '没有图标时用宿主原来的鲸鱼' },
+            h('input', {
+              type: 'checkbox',
+              checked: Boolean(current.hideWhale),
+              onChange: (event) => setState({ ...current, hideWhale: event.target.checked }),
+            }),
+            '隐藏大鲸鱼',
+          ),
+          h('span', { className: 'fgw-hint' }, current.logo ? '已用你的图标替换侧栏与新会话标识' : '可上传 PNG/SVG 做自己的标识'),
+          h('button', { className: 'fgw-btn', onClick: pickLogo }, current.logo ? '更换图标' : '上传图标'),
+          current.logo
+            ? h('button', { className: 'fgw-btn', onClick: () => setState({ ...current, logo: '' }) }, '移除')
+            : null,
+          current.logo
+            ? h(
+                'img',
+                { className: 'fgw-thumb-logo', src: current.logo, alt: '', style: { width: '26px', height: '26px' } },
+              )
+            : null,
+        ),
+        h(
+          'div',
           { className: 'fgw-line fgw-stack' },
           h(
             'div',
@@ -1275,6 +1603,8 @@ window.__ModuleLoader__.load({
             onChange: (event) => setDraftName(event.target.value),
           }),
           h('button', { className: 'fgw-btn primary', onClick: saveTheme }, '保存主题'),
+          h('button', { className: 'fgw-btn', title: '把当前配色和已存主题导出成一个 JSON 文件', onClick: exportJson }, '导出'),
+          h('button', { className: 'fgw-btn', title: '从别人分享的 JSON 导入配色', onClick: importJson }, '导入'),
           h(
             'div',
             { className: 'fgw-actions' },
@@ -1301,6 +1631,20 @@ window.__ModuleLoader__.load({
           accept: 'video/*',
           style: { display: 'none' },
           onChange: onVideo,
+        }),
+        h('input', {
+          ref: logoRef,
+          type: 'file',
+          accept: 'image/png,image/svg+xml,image/webp,image/jpeg',
+          style: { display: 'none' },
+          onChange: onLogo,
+        }),
+        h('input', {
+          ref: themeFileRef,
+          type: 'file',
+          accept: 'application/json,.json',
+          style: { display: 'none' },
+          onChange: onThemeFile,
         }),
         note ? h('div', { className: 'fgw-note' }, note) : null,
       )
@@ -1347,6 +1691,28 @@ window.__ModuleLoader__.load({
     }
 
     ChipsDock.displayName = 'FreshGreenChipsDock'
+
+    /** Stands in for the host's brand mark while a custom logo is uploaded. */
+    function BrandIcon(props) {
+      const [current, setCurrent] = useState(getState)
+      useEffect(() => {
+        const listener = (next) => setCurrent({ ...next })
+        listeners.add(listener)
+        return () => listeners.delete(listener)
+      }, [])
+
+      if (!current.logo) return null
+      const size = props && props.size ? Number(props.size) : 24
+      return h('img', {
+        className: 'fgw-brand-icon',
+        src: current.logo,
+        alt: '',
+        style: { width: `${size}px`, height: `${size}px` },
+      })
+    }
+
+    BrandIcon.displayName = 'FreshGreenBrandIcon'
+    runtime.logoComponent = BrandIcon
 
     return {
       inject: ['theme', 'slots'],

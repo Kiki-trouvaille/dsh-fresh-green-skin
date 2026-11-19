@@ -356,6 +356,38 @@ if (dock && typeof dock.component === 'function') {
   }
 }
 
+// --- 1.7 UX additions -----------------------------------------------------
+if (tree) {
+  const rendered = text(tree).join(' ')
+  check(rendered.includes('一键预设'), 'row renders the one-click presets')
+  check(rendered.includes('纯纸面'), 'presets include a plain-paper look')
+  check(rendered.includes('纸面'), 'colours expose the paper anchor')
+  check(rendered.includes('导出') && rendered.includes('导入'), 'themes can be exported and imported')
+  check(rendered.includes('上传图标'), 'a custom logo can be uploaded')
+  check(rendered.includes('隐藏大鲸鱼'), 'the hero whale can be hidden')
+
+  const presets = nodes(tree).filter((node) => {
+    const className = node.props && node.props.className
+    return typeof className === 'string' && className.split(/\s+/).includes('fgw-preset')
+  })
+  check(presets.length === 4, `row renders four quick presets (${presets.length})`)
+}
+
+check(CSS_TEXT.includes('.fgw-preset'), 'preset buttons are styled')
+check(CSS_TEXT.includes("body[data-fgw-logo='on']"), 'a custom logo hides the host whale')
+
+// --- persistence keeps every panel field ----------------------------------
+let saved = null
+try {
+  saved = JSON.parse(localStorage.getItem('fresh-green-skin:state') || 'null')
+} catch {
+  saved = null
+}
+check(Boolean(saved), 'state is written to localStorage')
+check(Boolean(saved && saved.alpha && saved.alpha.sidebar === 40), 'sidebar opacity survives a reload')
+check(Boolean(saved && saved.chips && Array.isArray(saved.chips.items)), 'quick-launch chips survive a reload')
+check(Boolean(saved && typeof saved.topbarClear === 'boolean'), 'topbar flag survives a reload')
+
 if (failures.length) {
   console.log(`\n${failures.length} check(s) failed`)
   process.exit(1)

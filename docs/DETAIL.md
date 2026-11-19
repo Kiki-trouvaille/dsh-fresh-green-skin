@@ -13,14 +13,19 @@
 - **动态壁纸**：视频以 Blob 存进 IndexedDB（库 `fresh-green-skin`，store `media`，键 `video`），播放时插入 `<video class="fgw-video">`（`position: fixed`、`z-index: -2`、静音循环）与 `.fgw-video-veil`（`z-index: -1`）。此时 `body` 背景置透明、`<html>` 上底色 `#08120c`，视频才不会被 body 背景盖住。
 - **自适应蒙版**：勾「跟随壁纸自动」时，`veil = clamp(0.7 − 平均亮度 × 0.55, 0.26, 0.74)`——亮的照片蒙得多、暗的照片蒙得少。
 - **字体**：`--fgw-font` 写到 `body` 的 `font-family`，选项见 `FONTS`（默认 / 黑体 / 宋体 / 楷体 / 衬线英文 / 等宽）；默认值 `inherit` 保持 DSH 原样。
-- **设置项**：注册到 `settings.general.item`（id `fresh-green-wallpaper`，order 20），分七行：
+- **设置项**：注册到 `settings.general.item`（id `fresh-green-wallpaper`，order 20），分九行：
   1. 壁纸：画廊缩略图（内置图 / “我的图片” / “视频”块）+ 上传图片 / 上传视频 / 恢复默认
-  2. 透明度：滑块 0–100%（默认 34%）+「跟随壁纸自动」
-  3. 配色：跟随系统 / 默认绿 / 跟随壁纸 / 自定义（各占一行按钮；选「跟随系统」时多一个「中性强调色」开关，把 brand/state 换成 #4c5f56 那组中性灰），下一行是主色 / 侧栏 / 气泡 / 文字四个取色器，除「跟随壁纸」外任何模式都能单独覆盖，每个带 **取色**（点壁纸取色）；「跟随系统」用宿主浅/深色 + 按壁纸亮度自动挑文字色（`contrastText()`）
-  4. 透光：侧栏 / 气泡不透明度（默认 62% / 88%），把用户挑的颜色变成 `rgba(h,alpha)`，不糊住壁纸；「顶栏透明」勾上后写 `--fgw-topbar: transparent`，标题栏条带不再铺磨砂
-  5. 品牌：鲸鱼颜色（`--fgw-whale`）+「品牌字上色」开关（开启才写 `--fgw-brandtext` 并给 `body` 打 `data-fgw-brand-tint`），「跟随主题」清空两者
-  6. 快捷条：开关 + 条目列表（名称 / 插入文字 / 颜色 / 取色 / 删除）
-  7. 字体与主题：字体下拉；名字输入 + 保存主题 + 已存主题按钮（`⌃⌥n`）+ `×` 删除
+  2. 一键预设：四张卡片（清爽白绿 / 全壁纸 / 跟随系统 / 纯纸面），每张只改自己关心的字段（`QUICK_PRESETS` 里的 `value` 会被浅合并进 state），点完再往下微调
+  3. 透明度：滑块 0–100%（默认 34%）+「跟随壁纸自动」
+  4. 配色：跟随系统 / 默认绿 / 跟随壁纸 / 自定义（选「跟随系统」时多一个「中性强调色」开关，把 brand/state 换成 #4c5f56 那组中性灰），下一行是主色 / **纸面** / 侧栏 / 气泡 / 文字五个取色器，除「跟随壁纸」外任何模式都能单独覆盖，每个带 **取色**（点壁纸取色）
+  5. 透光：侧栏 / 气泡不透明度（默认 62% / 88%），把用户挑的颜色变成 `rgba(h,alpha)`；「顶栏透明」写 `--fgw-topbar: transparent`
+  6. 品牌：鲸鱼颜色（`--fgw-whale`）+「品牌字上色」开关（写 `--fgw-brandtext` + `body[data-fgw-brand-tint]`），「跟随主题」清空两者
+  7. 图标：**上传图标**（PNG/SVG → canvas 缩到 96px PNG data URI，存 `state.logo`）、「隐藏大鲸鱼」（`body[data-fgw-hide-whale]` 隐藏 `canvas[data-home-whale]`）
+  8. 快捷条：开关 + 条目列表（名称 / 插入文字 / 颜色 / 取色 / 删除）
+  9. 字体与主题：字体下拉；名字输入 + 保存主题 + **导出 / 导入** + 已存主题按钮（`⌃⌥n`）+ `×` 删除
+- **纸面锚点**：`state.paper` 是一个颜色锚点。设了它以后 `buildTokens` 由它推出 `bg-layer-1/2/3`（`withAlpha(paper, alpha.sidebar/bubble)`）、`border-l1/l2/l3`（`withAlpha(accent, 16/22/30)`）、`label-secondary/tertiary`（`mixHex(text, paper, 0.45/0.66)`），并且 `applyState` 在没单独设侧栏色时用它当 `--fgw-sidebar`——所以“改一个纸色，整块界面跟着走”，不用逐个面板调。
+- **导入 / 导出**：`exportThemeFile()` 生成 `{ app, version, exportedAt, state, themes }` 的 JSON 并触发下载；`readThemeFile()` 读回后，`state`/`value` 走 `{...defaults(), ...incoming}` 应用，`themes` 按名字合并（同名覆盖）。
+- **自定义图标**：`syncLogo()` 只在 `state.logo` 非空时向 `sidebar.brand.mark` 与 `conversation.hero.brand.mark` 注册 `BrandIcon`（渲染 `<img class="fgw-brand-icon">`），清空时 dispose —— 没上传的人仍然看到宿主原来的鲸鱼；同时 `body[data-fgw-logo='on']` 把宿主画的 `canvas[data-home-whale]` 隐藏，避免两个标识叠在一起。
 - **品牌着色**：鲸鱼是宿主的 `<canvas data-home-whale>`，其 `fillStyle` 读自 `getComputedStyle(canvas).color`，所以 CSS 里把它 `filter: none` 并改 `color: var(--fgw-whale)`；侧栏字样只在勾选「品牌字上色」时才写 `color`（`body[data-fgw-brand-tint='on'] [class*='_brandName']` 等），因为那组标记里同时包含 `HARNESS` 徽标，无条件染色会让徽标和背景同色而“消失”。两者都不替换宿主组件，属于软着色。
 - **顶栏与侧栏同层**：Windows 布局里标题栏条带 `[class*='_frame']::before` 与侧栏 `[class*='_sidebarCol']` 共用同一组背景来源，插件把两者都设成 `var(--fgw-topbar, var(--fgw-sidebar, 磨砂白/深))`，所以顶部与侧栏默认是连续的一层；勾「顶栏透明」时只把 `--fgw-topbar` 置为 transparent，侧栏仍保留磨砂。
 - **快捷条 dock**：注册到 `conversation.input.dock`（id `fresh-green-chips`，order 5），渲染首字母圆角图标；点击时按 `[data-composer] textarea` → `textarea` → `[contenteditable]` 顺序找输入框，用 `setRangeText` + `input` 事件把文字插进去。
@@ -37,7 +42,7 @@
 | 文件 | 作用 |
 | --- | --- |
 | `client.js.tpl` | 可读模板（token、CSS、设置行组件、IndexedDB、快捷键），含 `__PRESETS__` 占位符 |
-| `client.js` | 由模板 + 壁纸清单生成，实际被加载（约 985 KB，含内联壁纸，不要手改） |
+| `client.js` | 由模板 + 壁纸清单生成，实际被加载（约 1.0 MB，含内联壁纸，不要手改） |
 | `assets/presets/manifest.json` | 内置壁纸清单：`file` 指向图片，`css` 为纯 CSS 渐变；**第一项是默认壁纸**（当前只有一张：山舍晴暮） |
 | `assets/presets/meadow.jpg` | 默认壁纸原图（2730×1536，1.2 MB） |
 | `assets/wallpaper.avif` | 默认照片压好的 AVIF（q60，约 713 KB，由脚本另存） |
@@ -62,7 +67,8 @@
 
 ## 没做的部分
 
-- 没有替换宿主的品牌组件，只做颜色着色（见上面「品牌着色」）：DSH 换掉 `data-home-whale`、`_brandName` 这些标记时着色会失效，不影响其他功能。
+- 宿主的品牌位只做“着色 / 换标识”，没有替换整块品牌组件：DSH 换掉 `data-home-whale`、`_brandName`、`_brandMark` 这些标记时，着色与自定义图标会失效，不影响其他功能。
+- 大鲸鱼是 canvas 画的，只能隐藏或改色，无法直接换成图片；想用自己的图，走「图标 → 上传图标」，它会替换侧栏与新会话的品牌标识。
 - 快捷条不做插件自动发现：条目由你在设置里手填（名称 + 插入文字），因为宿主没有把插件图标/命令列表暴露给 client 插件。
 
 ## 备注
