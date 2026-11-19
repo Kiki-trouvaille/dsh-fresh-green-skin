@@ -16,8 +16,8 @@
         "zh": "清新白绿皮肤"
       },
       "description": {
-        "en": "Fresh white-green theme with photo or video wallpapers: the scrim and ink follow the picture so text stays readable, five system papers, paper-anchored colours, one-click presets, a see-through sidebar, brand colours, custom logo, quick chips and exportable themes.",
-        "zh": "清新白绿皮肤：照片/视频壁纸都能看清字（遮罩与字色跟随画面自适应），五套系统纸色、一键预设、纸面锚点配色、侧栏可完全透明、品牌色与自定义图标、快捷条，主题可保存与导出。"
+        "en": "Fresh green skin: photo, custom image or video wallpaper, quick presets, palettes with a paper anchor, five system papers, auto contrast, see-through sidebar, brand tinting and named themes.",
+        "zh": "清新白绿皮肤：照片/自定义图片/视频壁纸、一键预设、纸面锚点配色、五套系统纸色、自动保证对比、透光侧栏、品牌与图标换色、命名主题。"
       },
       "icon": "icon.svg",
       "author": "Kiki-trouvaille",
@@ -35,6 +35,18 @@
         ]
       },
       "versions": [
+        {
+          "version": "1.8.2",
+          "publishTimestamp": 1795101985,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/Kiki-trouvaille/dsh-fresh-green-skin",
+            "commit": "5e0d56a07e7c9456d0a7e921ebd684c1c4168fc6"
+          },
+          "engines": {
+            "dsh": ">=0.2.0-rc.1"
+          }
+        },
         {
           "version": "1.8.1",
           "publishTimestamp": 1795100948,
