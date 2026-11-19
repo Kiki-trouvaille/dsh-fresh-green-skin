@@ -375,6 +375,8 @@ if (tree) {
 
 check(CSS_TEXT.includes('.fgw-preset'), 'preset buttons are styled')
 check(CSS_TEXT.includes("body[data-fgw-logo='on']"), 'a custom logo hides the host whale')
+check(CSS_TEXT.includes("[class*='_brandMark'] svg path"), 'the sidebar whale is painted from the theme')
+check(CSS_TEXT.includes("[class*='_brandName'] svg path"), 'the sidebar wordmark is painted from the theme')
 
 // --- persistence keeps every panel field ----------------------------------
 let saved = null

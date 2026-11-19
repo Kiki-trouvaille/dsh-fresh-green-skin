@@ -108,12 +108,20 @@ body[data-fresh-skin='on'] [class*='_fish'] svg,
 body[data-fresh-skin='on'] [class*='_fish'] path {
   fill: var(--fgw-whale, currentColor) !important;
 }
-/* Optional: tint the sidebar wordmark. Off by default — the lockup also carries
-   the HARNESS badge, which would be painted with the same colour and vanish. */
-body[data-fgw-brand-tint='on'] [class*='_brandName'],
-body[data-fgw-brand-tint='on'] [class*='_brandIdentity'],
-body[data-fgw-brand-tint='on'] [class*='_titleGroup'] {
-  color: var(--fgw-brandtext, inherit) !important;
+/* The sidebar lockup is inline SVG painted with currentColor: the whale sits in
+   the brandMark element, the wordmark in brandName. They get their own variables
+   so the mark and the text can be coloured independently. */
+body[data-fresh-skin='on'] [class*='_brandMark'] svg path,
+body[data-fresh-skin='on'] [class*='_brandMark'] svg use {
+  fill: var(--fgw-whale, currentColor) !important;
+}
+body[data-fresh-skin='on'] [class*='_brandName'],
+body[data-fresh-skin='on'] [class*='_brandIdentity'],
+body[data-fresh-skin='on'] [class*='_titleGroup'] {
+  color: var(--fgw-brandtext, inherit);
+}
+body[data-fresh-skin='on'] [class*='_brandName'] svg path {
+  fill: var(--fgw-brandtext, currentColor) !important;
 }
 /* Quick-launch chips docked right above the composer. */
 .fgw-dock {
@@ -481,7 +489,6 @@ function defaults() {
     veil: DEFAULT_VEIL,
     autoVeil: false,
     palette: 'theme',
-    brandTint: false,
     topbarClear: false,
     neutralAccent: false,
     tone: 'neutral',
@@ -755,14 +762,15 @@ function applyState(next) {
 
   if (colors.whale) root.style.setProperty('--fgw-whale', colors.whale)
   else root.style.removeProperty('--fgw-whale')
-  if (next.brandTint && colors.wordmark) root.style.setProperty('--fgw-brandtext', colors.wordmark)
+  // The wordmark colour simply follows its picker — no extra switch to forget
+  // about; an empty value restores the host's own colour.
+  if (colors.wordmark) root.style.setProperty('--fgw-brandtext', colors.wordmark)
   else root.style.removeProperty('--fgw-brandtext')
 
   const body = document.body
   if (body) {
     body.dataset.freshSkin = 'on'
-    if (next.brandTint && colors.wordmark) body.dataset.fgwBrandTint = 'on'
-    else delete body.dataset.fgwBrandTint
+    delete body.dataset.fgwBrandTint
     if (next.logo) body.dataset.fgwLogo = 'on'
     else delete body.dataset.fgwLogo
     if (next.hideWhale) body.dataset.fgwHideWhale = 'on'
@@ -1626,21 +1634,11 @@ window.__ModuleLoader__.load({
           ),
           h(
             'label',
-            { className: 'fgw-toggle', title: '给侧栏 deepseek HARNESS 字样着色（HARNESS 徽标会一起变色）' },
-            h('input', {
-              type: 'checkbox',
-              checked: Boolean(current.brandTint),
-              onChange: (event) => setState({ ...current, brandTint: event.target.checked }),
-            }),
-            '品牌字上色',
-          ),
-          h(
-            'label',
-            { className: 'fgw-toggle', title: '品牌字颜色（勾选上面才生效）' },
+            { className: 'fgw-toggle', title: '侧栏与新会话的「deepseek HARNESS」字样颜色；徽标底色会一起变，浅底色上请选深色' },
+            '品牌字',
             h('input', {
               type: 'color',
               className: 'fgw-swatch',
-              disabled: !current.brandTint,
               value: current.colors.wordmark || '#0f1c14',
               onChange: (event) => setColors({ wordmark: event.target.value }),
             }),
@@ -1650,7 +1648,7 @@ window.__ModuleLoader__.load({
             {
               type: 'button',
               className: 'fgw-btn',
-              onClick: () => setState({ ...current, brandTint: false, colors: { ...current.colors, whale: '', wordmark: '' } }),
+              onClick: () => setState({ ...current, colors: { ...current.colors, whale: '', wordmark: '' } }),
             },
             '跟随主题',
           ),
