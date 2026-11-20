@@ -5,3 +5,7 @@
 *.avif binary
 *.jpg binary
 *.ico binary
+
+# client.js.tpl is a JavaScript template (it feeds tools/build-client.py), not a
+# Smarty template, so keep GitHub's language badge on JavaScript.
+*.tpl linguist-language=JavaScript
