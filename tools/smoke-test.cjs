@@ -52,6 +52,9 @@ const makeElement = (tag) => ({
   },
   remove() {},
   setAttribute() {},
+  hasAttribute() {
+    return false
+  },
   play() {
     return Promise.resolve()
   },
@@ -380,6 +383,13 @@ check(
   cssVars.get('--fgw-brand-inverted') === '#fafdfa',
   'badge letters flip to light ink on a dark wordmark colour',
 )
+check(
+  /^rgba\(46,139,87,0\.55\)$/.test(String(cssVars.get('--fgw-assistant'))),
+  'replies get their own translucent bubble tint',
+)
+check(String(cssVars.get('--fgw-assistant-dark') || '').includes('0.63'), 'the reply bubble has a dark-mode variant')
+check(CSS_TEXT.includes("[data-chat-flow-kind='assistant']"), 'assistant replies are wrapped in a bubble')
+check(Boolean(tree) && text(tree).join(' ').includes('回复气泡的不透明度'), 'row renders the reply bubble opacity slider')
 check(
   CSS_TEXT.includes("--dsw-alias-label-primary-inverted: var(--fgw-brand-inverted"),
   'the badge letter token is overridden so HARNESS stays readable',

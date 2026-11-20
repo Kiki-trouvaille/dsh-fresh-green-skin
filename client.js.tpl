@@ -124,6 +124,25 @@ body[data-fresh-skin='on'] [class*='_titleGroup'] {
   color: var(--fgw-brandtext, inherit);
   --dsw-alias-label-primary-inverted: var(--fgw-brand-inverted, #fafdfa);
 }
+/* Replies: the assistant text sits on its own surface, so it stays readable no
+   matter what the wallpaper is doing underneath. Opacity is user controlled. */
+body[data-fresh-skin='on'] [data-chat-flow-kind='assistant'] {
+  background: var(--fgw-assistant, rgba(255,255,255,0.55));
+  border: 1px solid var(--dsw-alias-border-l1, rgba(47,143,91,0.16));
+  border-radius: 14px;
+  padding: 12px 16px;
+  box-sizing: border-box;
+}
+body[data-ds-dark-theme][data-fresh-skin='on'] [data-chat-flow-kind='assistant'] {
+  background: var(--fgw-assistant-dark, var(--fgw-assistant, rgba(255,255,255,0.55)));
+}
+body[data-fresh-skin='on'] [data-chat-flow-kind='assistant'] > *:first-child {
+  margin-top: 0;
+}
+body[data-fresh-skin='on'] [data-chat-flow-kind='assistant'] > *:last-child {
+  margin-bottom: 0;
+}
+
 /* Quick-launch chips docked right above the composer. */
 .fgw-dock {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
@@ -506,7 +525,7 @@ function defaults() {
     logo: '',
     hideWhale: false,
     colors: { brand: '', sidebar: '', bubble: '', text: '', whale: '', wordmark: '' },
-    alpha: { sidebar: 62, bubble: 88 },
+    alpha: { sidebar: 62, bubble: 88, assistant: 55 },
     chips: { enabled: true, items: [] },
     font: '',
   }
@@ -764,6 +783,15 @@ function applyState(next) {
   if (next.sidebarFill === false) root.style.setProperty('--fgw-sidebar', 'transparent')
   else if (sidebar) root.style.setProperty('--fgw-sidebar', withAlpha(sidebar, alpha.sidebar))
   else root.style.removeProperty('--fgw-sidebar')
+
+  // Replies get a bubble of their own, so the assistant text sits on a known
+  // surface instead of directly on the photo. It shares the bubble colour and
+  // has its own opacity; dark mode gets its own variable, resolved in CSS, so
+  // no JS has to probe the current theme.
+  const replyTint = colors.bubble || sidebar || '#ffffff'
+  const replyAlpha = clamp(Number(alpha.assistant ?? 55), 0, 100)
+  root.style.setProperty('--fgw-assistant', withAlpha(replyTint, replyAlpha))
+  root.style.setProperty('--fgw-assistant-dark', withAlpha(replyTint, Math.min(100, replyAlpha + 8)))
   // "透明顶栏": let the wallpaper run to the very top, keeping the sidebar frosted.
   if (next.topbarClear) root.style.setProperty('--fgw-topbar', 'transparent')
   else root.style.removeProperty('--fgw-topbar')
@@ -1605,6 +1633,24 @@ window.__ModuleLoader__.load({
             h('span', { className: 'fgw-value' }, `${Number((current.alpha || {}).bubble ?? 88)}%`),
           ),
           h('span', { className: 'fgw-hint' }, '越低越能看见壁纸'),
+        ),
+        h(
+          'div',
+          { className: 'fgw-line' },
+          h('span', { className: 'fgw-label' }, '回复'),
+          h(
+            'span',
+            { className: 'fgw-toggle', title: '给助手的回复加一层气泡底色；拉到 0 就只有描边' },
+            h('input', {
+              type: 'range',
+              min: 0,
+              max: 100,
+              value: Number((current.alpha || {}).assistant ?? 55),
+              onChange: (event) => setAlpha({ assistant: Number(event.target.value) }),
+            }),
+            h('span', { className: 'fgw-value' }, `${Number((current.alpha || {}).assistant ?? 55)}%`),
+          ),
+          h('span', { className: 'fgw-hint' }, '回复气泡的不透明度'),
         ),
         h(
           'div',

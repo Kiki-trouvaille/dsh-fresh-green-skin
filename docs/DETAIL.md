@@ -17,13 +17,14 @@
   - 遮罩方向由 `--fgw-scrim` / `--fgw-scrim-dark`（`255,255,255` / `6,12,9` 这类 RGB 三元组）控制，浅色系统纸抬高、深色纸（墨黑）压暗。
 - **系统纸色**：`SYSTEM_TONES` 五套——中性灰 `#f4f5f4`、冷白 `#eef3f7`、暖白 `#f7f3ec`、雾灰 `#e7ebe9`、墨黑 `#20262a`（`dark: true`）。`palette: 'system'` 时面板取 `withAlpha(tone.paper, alpha…)`，文字按 tone 明暗给 `#0f1c14` / `#f2faf5`，边框换中性色，勾「中性强调色」再把品牌色降到 `#4c5f56` / `#a9c3b6`。
 - **侧栏不铺色**：`state.sidebarFill === false` 时 `applyState` 直接把 `--fgw-sidebar` 写成 `transparent`，侧栏与顶栏条带都只透壁纸；开着时按 `colors.sidebar || paper || tone.paper` + `alpha.sidebar` 铺一层。
+- **回复气泡**：助手回复在宿主里的容器带 `data-chat-flow-kind="assistant"`，插件给它加 `background: var(--fgw-assistant)` + 1px 描边 + 14px 圆角 + 12/16px 内边距。`applyState` 写两个变量：`--fgw-assistant`（`withAlpha(colors.bubble || sidebar, alpha.assistant)`，默认 55%）和 `--fgw-assistant-dark`（同一个色、alpha +8），深色由 `body[data-ds-dark-theme]` 规则切线，不需要 JS 探测主题。容器上第一条/最后一条子元素的 `margin` 归零，避免气泡里多出空白。
 - **字体**：`--fgw-font` 写到 `body` 的 `font-family`，选项见 `FONTS`（默认 / 黑体 / 宋体 / 楷体 / 衬线英文 / 等宽）；默认值 `inherit` 保持 DSH 原样。
 - **设置项**：注册到 `settings.general.item`（id `fresh-green-wallpaper`，order 20），分九行：
   1. 壁纸：画廊缩略图（内置图 / “我的图片” / “视频”块）+ 上传图片 / 上传视频 / 恢复默认
   2. 一键预设：四张卡片（清爽白绿 / 全壁纸 / 跟随系统 / 纯纸面），每张只改自己关心的字段（`QUICK_PRESETS` 里的 `value` 会被浅合并进 state），点完再往下微调
   3. 透明度：滑块 0–100%（默认 34%）+「跟随壁纸自动」；开自动对比时滑块置灰并显示推算出的值
   4. 配色：跟随系统 / 默认绿 / 跟随壁纸 / 自定义，右侧「自动保证对比」勾选（跟随系统/跟随壁纸时可见）；选「跟随系统」时多出「系统色」一行（五套纸色）与「中性强调色」开关；下一行是主色 / **纸面** / 侧栏 / 气泡 / 文字五个取色器，除「跟随壁纸」外任何模式都能单独覆盖，每个带 **取色**（点壁纸取色）
-  5. 透光：侧栏 / 气泡不透明度（默认 62% / 88%），把用户挑的颜色变成 `rgba(h,alpha)`；下一行是「侧栏填充」（关 = `--fgw-sidebar: transparent`）与「顶栏透明」（`--fgw-topbar: transparent`）
+  5. 透光：侧栏 / 气泡不透明度（默认 62% / 88%），把用户挑的颜色变成 `rgba(h,alpha)`；下一行「回复」（`alpha.assistant`，默认 55%，驱动助手气泡）；再下一行是「侧栏填充」（关 = `--fgw-sidebar: transparent`）与「顶栏透明」（`--fgw-topbar: transparent`）
   6. 品牌：鲸鱼颜色（`--fgw-whale`，作用于新会话 canvas 鲸鱼与侧栏 `_brandMark` 的 FishLogo）+「品牌字」颜色（`--fgw-brandtext` + 翻转后的 `--fgw-brand-inverted`，作用于 `_brandName` / `_brandIdentity` / `_titleGroup`），「跟随主题」清空两者
   7. 图标：**上传图标**（PNG/SVG → canvas 缩到 96px PNG data URI，存 `state.logo`）、「隐藏大鲸鱼」（`body[data-fgw-hide-whale]` 隐藏 `canvas[data-home-whale]`）
   8. 快捷条：开关 + 条目列表（名称 / 插入文字 / 颜色 / 取色 / 删除）
@@ -36,7 +37,7 @@
 - **快捷条 dock**：注册到 `conversation.input.dock`（id `fresh-green-chips`，order 5），渲染首字母圆角图标；点击时按 `[data-composer] textarea` → `textarea` → `[contenteditable]` 顺序找输入框，用 `setRangeText` + `input` 事件把文字插进去。
 - **快捷键**：`Ctrl+Alt+1…9` 应用第 n 套已存主题，`Ctrl+Alt+0` 恢复默认（`installShortcuts` 里监听 keydown，忽略带 Shift 的组合）。
 - **持久化**：
-  - `fresh-green-skin:state`：`{ source, veil, autoVeil, palette, tone, autoContrast, sidebarFill, paper, colors, alpha, chips, logo, hideWhale, brandTint, topbarClear, neutralAccent, font }`；`source` 为 `{kind:'preset',id}` / `{kind:'image',src}` / `{kind:'video',name}`，图片是 data URI；`alpha` 是侧栏/气泡不透明度（0–100），`chips` 是 `{ enabled, items: [{ id, label, text, color }] }`；`tone` 是系统纸色 id，`autoContrast` 默认 `true`，`sidebarFill` 默认 `true`。
+  - `fresh-green-skin:state`：`{ source, veil, autoVeil, palette, tone, autoContrast, sidebarFill, paper, colors, alpha, chips, logo, hideWhale, brandTint, topbarClear, neutralAccent, font }`；`source` 为 `{kind:'preset',id}` / `{kind:'image',src}` / `{kind:'video',name}`，图片是 data URI；`alpha` 是侧栏/气泡/回复气泡不透明度（0–100），`chips` 是 `{ enabled, items: [{ id, label, text, color }] }`；`tone` 是系统纸色 id，`autoContrast` 默认 `true`，`sidebarFill` 默认 `true`。
   - `fresh-green-skin:themes`：`[{ name, value }]`，`value` 是上一条去掉视频外的一切（视频主题只记名字，播的还是上传的那段视频）。
   - 旧版键（`fresh-green-skin:wallpaper`、`fresh-green-skin:veil`）在首次读取时自动迁移。
   - 视频二进制在 IndexedDB，不占 localStorage 配额。
