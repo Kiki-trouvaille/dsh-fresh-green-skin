@@ -119,6 +119,11 @@ https://kiki-trouvaille.github.io/dsh-fresh-green-skin/market-index.json
 
 索引里的 `versions[].source.commit` 是固定的 40 位提交号，发新版时要把它改成本次提交并同步 `version` / `publishTimestamp`（`publishTimestamp` 是 Unix 秒）。
 
+## 更新与下载
+
+- 最新版本：<https://github.com/Kiki-trouvaille/dsh-fresh-green-skin/releases/latest>（每个 release 都带一个 zip，解压后按「方式二：本地目录」装即可）
+- 也可以在 DSH 的「插件 → 添加插件」里填仓库地址，插件管理器会按 README 里的方式装成 `git+https://github.com/Kiki-trouvaille/dsh-fresh-green-skin.git#<commit>`；之后用「发现」页更新。
+
 ## 许可
 
 MIT
