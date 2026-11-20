@@ -1,6 +1,10 @@
 /**
  * Fresh green skin for the DSH web UI — a small theme studio.
  *
+ * (This file is JavaScript with two build-time placeholders: the wallpaper
+ * data URI and the preset list. tools/build-client.py fills them in and writes
+ * client.js — do not edit client.js by hand.)
+ *
  *  - wallpaper: a bundled 4K photo, your own image, or a looping video;
  *  - transparency slider with an adaptive ("auto") mode derived from how bright
  *    the wallpaper is, so text stays readable on any picture;
