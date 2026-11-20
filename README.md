@@ -98,6 +98,7 @@ node tools/smoke-test.cjs
 - 大鲸鱼、侧栏字样、快捷条都是**尽力而为**地贴着宿主渲染的标记/插槽做：鲸鱼是 `canvas[data-home-whale]`（宿主画它时读 `color`），侧栏是 `[class*='_brandName']` / `[class*='_brandIdentity']`，快捷条走官方的 `conversation.input.dock` 插槽。DSH 换掉这些标记名时，对应的着色会失效（不会影响别处），到时对照 `client.js.tpl` 的 CSS 改选择器即可。
 - 快捷条的点击依赖找到 composer 的 textarea（`[data-composer] textarea` → `textarea` → `[contenteditable]` 依次尝试）；若某个版本用了别的输入组件，图标能显示但插入会失败。
 - 视频壁纸用 `position: fixed` 的负 z-index 元素铺在内容后面，个别主题若给 `html`/`body` 加了不透明背景，视频会被盖住——这时把透明度调低或先切回图片壁纸即可。
+- 回复气泡靠宿主的 `data-chat-flow-kind` 标记识别“不是用户消息、也不是工具卡片”的行；如果某个版本换了这套标记，气泡不会出现（也不影响其他功能）。这时打开设置里的 **诊断容器**：每条消息会被画上红色虚线并标出它的类型，截一张图就能定位该改哪个选择器。
 
 ## 兼容性
 

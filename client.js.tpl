@@ -125,24 +125,57 @@ body[data-fresh-skin='on'] [class*='_titleGroup'] {
   --dsw-alias-label-primary-inverted: var(--fgw-brand-inverted, #fafdfa);
 }
 /* Replies: the assistant text sits on its own surface, so it stays readable no
-   matter what the wallpaper is doing underneath. Opacity is user controlled. */
-body[data-fresh-skin='on'] [data-chat-flow-kind='assistant'] {
+   matter what the wallpaper is doing underneath. Opacity is user controlled.
+
+   The host tags every flow row with data-chat-flow-kind; replies are the rows
+   that are neither the user's own message nor a tool/process card. Matching by
+   exclusion keeps working if the host renames the assistant kinds. */
+body[data-fresh-skin='on'] [data-chat-flow-kind]:not([data-chat-flow-kind^='user']):not([data-chat-flow-kind^='tool']):not([data-chat-flow-kind^='turn']):not([data-chat-flow-kind='compaction']):not([data-chat-flow-kind='context']):not([data-chat-flow-kind='system']) {
   background: var(--fgw-assistant, rgba(255,255,255,0.55));
   border: 1px solid var(--dsw-alias-border-l1, rgba(47,143,91,0.16));
   border-radius: 14px;
   padding: 12px 16px;
   box-sizing: border-box;
 }
-body[data-ds-dark-theme][data-fresh-skin='on'] [data-chat-flow-kind='assistant'] {
+body[data-ds-dark-theme][data-fresh-skin='on'] [data-chat-flow-kind]:not([data-chat-flow-kind^='user']):not([data-chat-flow-kind^='tool']):not([data-chat-flow-kind^='turn']):not([data-chat-flow-kind='compaction']):not([data-chat-flow-kind='context']):not([data-chat-flow-kind='system']) {
   background: var(--fgw-assistant-dark, var(--fgw-assistant, rgba(255,255,255,0.55)));
 }
-body[data-fresh-skin='on'] [data-chat-flow-kind='assistant'] > *:first-child {
+body[data-fresh-skin='on'] [data-chat-flow-kind] > [data-slot='conversation.chat.node'] {
+  background: none;
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+}
+body[data-fresh-skin='on'] [data-chat-flow-kind] > *:first-child {
   margin-top: 0;
 }
-body[data-fresh-skin='on'] [data-chat-flow-kind='assistant'] > *:last-child {
+body[data-fresh-skin='on'] [data-chat-flow-kind] > *:last-child {
   margin-bottom: 0;
 }
-
+/* Diagnostic overlay (设置 → 主题 → 诊断容器): labels each flow row with its kind
+   so a single screenshot tells us exactly which selector the host exposes. */
+body[data-fgw-debug][data-fresh-skin='on'] [data-chat-flow-kind] {
+  outline: 2px dashed rgba(214, 76, 76, 0.9) !important;
+  outline-offset: -2px;
+}
+body[data-fgw-debug][data-fresh-skin='on'] [data-chat-flow-kind]::before {
+  content: attr(data-chat-flow-kind);
+  position: absolute;
+  margin-top: -18px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(214, 76, 76, 0.92);
+  color: #fff;
+  font: 11px/1.4 ui-monospace, monospace;
+  z-index: 9;
+  pointer-events: none;
+}
+/* Second diagnostic pass: outline the prose blocks too, so a screenshot still
+   tells us something even if the host dropped the flow-kind attribute. */
+body[data-fgw-debug][data-fresh-skin='on'] [class*='prose'] {
+  outline: 1px solid rgba(76, 120, 214, 0.95) !important;
+  outline-offset: -1px;
+}
 /* Quick-launch chips docked right above the composer. */
 .fgw-dock {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
@@ -524,6 +557,7 @@ function defaults() {
     paper: '',
     logo: '',
     hideWhale: false,
+    debug: false,
     colors: { brand: '', sidebar: '', bubble: '', text: '', whale: '', wordmark: '' },
     alpha: { sidebar: 62, bubble: 88, assistant: 55 },
     chips: { enabled: true, items: [] },
@@ -817,6 +851,8 @@ function applyState(next) {
     else delete body.dataset.fgwLogo
     if (next.hideWhale) body.dataset.fgwHideWhale = 'on'
     else delete body.dataset.fgwHideWhale
+    if (next.debug) body.dataset.fgwDebug = 'on'
+    else delete body.dataset.fgwDebug
     if (next.source.kind === 'video') body.dataset.fgwVideo = 'on'
     else delete body.dataset.fgwVideo
   }
@@ -1830,6 +1866,16 @@ window.__ModuleLoader__.load({
           h('button', { className: 'fgw-btn primary', onClick: saveTheme }, '保存主题'),
           h('button', { className: 'fgw-btn', title: '把当前配色和已存主题导出成一个 JSON 文件', onClick: exportJson }, '导出'),
           h('button', { className: 'fgw-btn', title: '从别人分享的 JSON 导入配色', onClick: importJson }, '导入'),
+          h(
+            'label',
+            { className: 'fgw-toggle', title: '排查用：给每条消息画框并标出它的类型，截图发我就能定位样式没生效的原因' },
+            h('input', {
+              type: 'checkbox',
+              checked: Boolean(current.debug),
+              onChange: (event) => setState({ ...current, debug: event.target.checked }),
+            }),
+            '诊断容器',
+          ),
           h(
             'div',
             { className: 'fgw-actions' },

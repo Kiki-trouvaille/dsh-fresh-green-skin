@@ -388,7 +388,12 @@ check(
   'replies get their own translucent bubble tint',
 )
 check(String(cssVars.get('--fgw-assistant-dark') || '').includes('0.63'), 'the reply bubble has a dark-mode variant')
-check(CSS_TEXT.includes("[data-chat-flow-kind='assistant']"), 'assistant replies are wrapped in a bubble')
+check(
+  CSS_TEXT.includes(":not([data-chat-flow-kind^='user'])") &&
+    CSS_TEXT.includes(":not([data-chat-flow-kind^='tool'])"),
+  'assistant replies are wrapped in a bubble',
+)
+check(CSS_TEXT.includes('data-fgw-debug'), 'the diagnostic overlay styles are shipped')
 check(Boolean(tree) && text(tree).join(' ').includes('回复气泡的不透明度'), 'row renders the reply bubble opacity slider')
 check(
   CSS_TEXT.includes("--dsw-alias-label-primary-inverted: var(--fgw-brand-inverted"),
