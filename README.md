@@ -84,10 +84,10 @@ https://github.com/Kiki-trouvaille/dsh-fresh-green-skin
 python tools/build-client.py
 ```
 
-脚本会：读 manifest 里每张图片 → 超过 3840 宽才缩 → 压成 AVIF q60（Pillow 不带 AVIF 时回落 WebP q82）→ 以 `url("data:image/avif;base64,…")` 的形式把整份清单注入 `client.js.tpl` 的 `__PRESETS__` → 写出 `client.js`（默认那张同时另存为 `assets/wallpaper.avif`）。
+脚本会：读 manifest 里每张图片 → 超过 3840 宽才缩 → 压成 AVIF q60（Pillow 不带 AVIF 时回落 WebP q82）→ 以 `url("data:image/avif;base64,…")` 的形式把整份清单注入 `client.template.js` 的 `__PRESETS__` → 写出 `client.js`（默认那张同时另存为 `assets/wallpaper.avif`）。
 4K 原图不缩、质量给足的代价是 bundle 变大：现在 `client.js` 约 1.0 MB，其中壁纸约 730 KB。
 
-`client.js` 是生成物，改逻辑请改 `client.js.tpl`。改完跑一遍离线冒烟测试（不需要浏览器）：它会用一套假的 DSH 客户端加载 `client.js`，检查服务注入、token 覆盖、设置行注册，并把壁纸那一行**真的渲染一次**——渲染报错是这里唯一会静默失败的环节（设置里的整行会直接消失）。
+`client.js` 是生成物，改逻辑请改 `client.template.js`。改完跑一遍离线冒烟测试（不需要浏览器）：它会用一套假的 DSH 客户端加载 `client.js`，检查服务注入、token 覆盖、设置行注册，并把壁纸那一行**真的渲染一次**——渲染报错是这里唯一会静默失败的环节（设置里的整行会直接消失）。
 
 ```bash
 node tools/smoke-test.cjs
@@ -97,7 +97,7 @@ node tools/smoke-test.cjs
 
 ## 已知限制
 
-- 大鲸鱼、侧栏字样、快捷条都是**尽力而为**地贴着宿主渲染的标记/插槽做：鲸鱼是 `canvas[data-home-whale]`（宿主画它时读 `color`），侧栏是 `[class*='_brandName']` / `[class*='_brandIdentity']`，快捷条走官方的 `conversation.input.dock` 插槽。DSH 换掉这些标记名时，对应的着色会失效（不会影响别处），到时对照 `client.js.tpl` 的 CSS 改选择器即可。
+- 大鲸鱼、侧栏字样、快捷条都是**尽力而为**地贴着宿主渲染的标记/插槽做：鲸鱼是 `canvas[data-home-whale]`（宿主画它时读 `color`），侧栏是 `[class*='_brandName']` / `[class*='_brandIdentity']`，快捷条走官方的 `conversation.input.dock` 插槽。DSH 换掉这些标记名时，对应的着色会失效（不会影响别处），到时对照 `client.template.js` 的 CSS 改选择器即可。
 - 快捷条的点击依赖找到 composer 的 textarea（`[data-composer] textarea` → `textarea` → `[contenteditable]` 依次尝试）；若某个版本用了别的输入组件，图标能显示但插入会失败。
 - 视频壁纸用 `position: fixed` 的负 z-index 元素铺在内容后面，个别主题若给 `html`/`body` 加了不透明背景，视频会被盖住——这时把透明度调低或先切回图片壁纸即可。
 - 回复气泡靠宿主的 `data-chat-flow-kind` 标记识别“不是用户消息、也不是工具卡片”的行；如果某个版本换了这套标记，气泡不会出现（也不影响其他功能）。这时打开设置里的 **诊断容器**：每条消息会被画上红色虚线并标出它的类型，截一张图就能定位该改哪个选择器。
@@ -105,7 +105,7 @@ node tools/smoke-test.cjs
 ## 兼容性
 
 - 只作用于 Web 端（`dsh.client.platform: 'web'`）。
-- 通过 `theme.overrideTokens()` 覆盖 token，未识别的 token 名会被忽略，不会报错；DSH 改版后若某些颜色不再生效，对照 `client.js.tpl` 的 `BASE_TOKENS` 补名字即可。
+- 通过 `theme.overrideTokens()` 覆盖 token，未识别的 token 名会被忽略，不会报错；DSH 改版后若某些颜色不再生效，对照 `client.template.js` 的 `BASE_TOKENS` 补名字即可。
 - 壁纸能透到内容区的前提是 Windows 下应用外框用的是 `--dsw-specific-sidebar-fill`：本插件把它设成全透明，再用 `[class*='_sidebarCol']` 给侧栏单独补一层霜白。若某个 DSH 版本改了类名，侧栏会跟着变透明，其余不受影响。
 - 深色模式下正文是浅色字；勾着「自动保证对比」时遮罩会按画面亮度自己加浓，不需要手调。若手动关掉自动对比又把照片调得很亮，文字就会发灰——这时要么提高透明度，要么把「文字」色块调深。
 

@@ -48,7 +48,7 @@
 
 | 文件 | 作用 |
 | --- | --- |
-| `client.js.tpl` | 可读模板（token、CSS、设置行组件、IndexedDB、快捷键），含 `__PRESETS__` 占位符 |
+| `client.template.js` | 可读模板（token、CSS、设置行组件、IndexedDB、快捷键），含 `__PRESETS__` 占位符 |
 | `client.js` | 由模板 + 壁纸清单生成，实际被加载（约 1.0 MB，含内联壁纸，不要手改） |
 | `assets/presets/manifest.json` | 内置壁纸清单：`file` 指向图片，`css` 为纯 CSS 渐变；**第一项是默认壁纸**（当前只有一张：山舍晴暮） |
 | `assets/presets/meadow.jpg` | 默认壁纸原图（2730×1536，1.2 MB） |

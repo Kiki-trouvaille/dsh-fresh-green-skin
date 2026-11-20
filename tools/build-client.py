@@ -1,4 +1,4 @@
-"""Generate client.js from client.js.tpl plus the wallpaper presets.
+"""Generate client.js from client.template.js plus the wallpaper presets.
 
 The plugin's client entry is a plain browser script, so wallpapers have to
 travel with it: every photo in assets/presets is inlined as an AVIF data URI
@@ -25,7 +25,7 @@ ASSETS = ROOT / "assets"
 PRESETS_DIR = ASSETS / "presets"
 MANIFEST = PRESETS_DIR / "manifest.json"
 WALL = ASSETS / "wallpaper.avif"
-TPL = ROOT / "client.js.tpl"
+TPL = ROOT / "client.template.js"
 OUT = ROOT / "client.js"
 
 # 4K photos stay at their native size: downscaling to 1920 looked soft on
@@ -105,7 +105,7 @@ def main() -> None:
     presets = build_presets()
     template = TPL.read_text(encoding="utf-8")
     if "__PRESETS__" not in template:
-        raise SystemExit("client.js.tpl has no __PRESETS__ placeholder")
+        raise SystemExit("client.template.js has no __PRESETS__ placeholder")
 
     OUT.write_text(template.replace("__PRESETS__", js_literal(presets)), encoding="utf-8")
     print(f"presets: {', '.join(p['id'] for p in presets)}")
